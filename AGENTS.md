@@ -28,12 +28,12 @@ Predecessor project (visual reference only, do not modify): `C:\Workspace\linux-
 ## 2. Tech stack (fixed - do not substitute)
 
 - **Astro 5** with `output: "server"` and the **`@astrojs/node`** adapter in `standalone` mode.
-- **TypeScript** strict (`astro/tsconfigs/strict`).
-- **Tailwind CSS** (whichever integration the current Astro docs recommend).
+- **TypeScript** strict (`astro/tsconfigs/strict`). Pinned to 5.x, because `@astrojs/check` and `openapi-typescript` don't support TypeScript 7 yet.
+- **Tailwind CSS v4** through the `@tailwindcss/vite` plugin. Theme tokens (`steam-*` colours) are in `src/styles/global.css`.
 - **React islands** (`@astrojs/react`) only for interactive parts. Everything else is `.astro` with zero client JS.
 - **API client**: types generated from profile-api's OpenAPI spec with `openapi-typescript`, and requests made with `openapi-fetch`.
 - **Container**: multi-arch image (`linux/arm64` required), deployed to k3s with manifests in `k8s/`.
-- Package manager **npm**, Node **20 LTS** or newer.
+- Package manager **npm**, Node **20 LTS** or newer. The image uses Node 22, because Node 20 reached end of life in April 2026.
 
 Pi constraints:
 
@@ -85,6 +85,15 @@ kubectl apply -k k8s/
 
 For local development, run profile-api locally (`make run` in that repo) and point `PROFILE_API_URL` at `http://localhost:8080` and `PROFILE_API_ADMIN_URL` at `http://localhost:8081`.
 
+Local setup on the Windows dev machine:
+
+- The Cursor sandbox can't start a terminal here, so shell commands need to run unsandboxed.
+- `make` may be missing. Load profile-api's `.env` in PowerShell and run Go directly: `Get-Content .env | Where-Object { $_ -match '^\s*([A-Z_]+)=(.*)$' } | ForEach-Object { Set-Item "env:$($Matches[1])" $Matches[2].Trim("'`"") }; go run ./cmd/seed; go run ./cmd/api`.
+- A throwaway database works fine: `docker run -d --name spp-mongo -p 27017:27017 mongo:7` with `MONGODB_URI=mongodb://localhost:27017`.
+- The seed prints the steam-portfolio API key only on the first run. Put it in this repo's `.env`.
+- `SITE_URL` is `http://localhost:4321`. When testing a mutating request against a dev server on another port, send `Origin: http://localhost:4321` or the CSRF check returns 403.
+- Run only one `astro dev` at a time. Parallel dev servers share `node_modules/.vite` and break React hydration (`jsxDEV is not a function`). Fix it with `npx astro dev --force`.
+
 Definition of done for any change:
 
 - `npm run check`, `npm run lint` and `npm run build` pass.
@@ -105,6 +114,8 @@ Definition of done for any change:
 
 In k3s these come from secret `steam-portfolio-env`. Commit only `k8s/secret.example.yaml`.
 
+All of them are declared in `astro.config.mjs` as `astro:env` server **secrets**, so they are read at runtime rather than inlined at build time, and one image serves every environment. Import them from `astro:env/server`. `PUBLIC_GA_ID` is a server secret too: the layout renders the GA snippet only when it is set.
+
 ## 6. Project structure
 
 ```
@@ -121,38 +132,65 @@ src/
     replay.astro
     store.astro                 # "Hire Me"
     shop.astro                  # Points Shop
-    admin/                      # login, dashboard, one page per collection, inbox, moderation
+    404.astro
+    admin/
+      login.astro, logout.ts
+      index.astro               # dashboard: status switch, summary counts
+      profile.astro
+      [collection]/index.astro  # list, reorder, delete, rotate key (clients)
+      [collection]/[id].astro   # edit; `_new` creates
+      inbox.astro, moderation.astro
     api/
       status.json.ts            # proxy GET /v1/status
       contact.ts                # forward to /v1/apps/{app}/messages
       comments.ts               # GET approved / POST forward to /v1/apps/{app}/comments
+      _forward.ts               # shared body parsing and error mapping (underscore = not a route)
       admin/[...path].ts        # authenticated proxy for admin island actions
       health.ts                 # liveness for k8s
   layouts/
-    BaseLayout.astro            # Steam client chrome + Deck nav
+    BaseLayout.astro            # Steam client chrome + Deck nav, toast root, shop CSS vars, GA
     AdminLayout.astro
   components/
-  islands/
+    Panel.astro, Unavailable.astro, EmptyState.astro
+    profile/ badges/ games/ achievements/ inventory/ wishlist/ replay/ store/ admin/
+    islands/                    # React islands (StatusPanel, Inventory, ContactForm, Guestbook, ShopIsland, ...)
+  scripts/
+    layout.ts                   # runs on every page: nav dropdown, easter eggs
+    eggs/                       # online toast, card drops, Konami listener
   lib/
     api/
       schema.d.ts               # generated, do not edit
+      types.ts                  # schema aliases, ApiResult, COLLECTIONS
+      result.ts                 # settle(), timeouts, degraded-request tracking
       public.ts                 # typed client for :8080
-      admin.ts                  # typed client for :8081, takes the session token
+      admin.ts                  # typed client for :8081, takes the session token; proxy forwarding
+      admin-collections.ts      # create, replace, delete, reorder
+    admin/                      # form field descriptors, 401 guard, flash messages, app list, time zones
     presentation/
       level.ts                  # ring colour by level
       status.ts                 # labels and colours per status kind
       rarity.ts                 # tier names and colours
+    client/                     # browser-only: localStorage helpers and STORAGE_KEYS, toasts
+    eggs/                       # pure card-drop and Konami logic
+    cards.ts                    # trading card catalogue and change event
+    shop.ts                     # Points Shop backgrounds and frames
+    format.ts                   # dates, months, relative time, hours
+    http.ts                     # cache headers, client IP, Origin check, JSON responses
     session.ts                  # cookie read/write for the admin token
-  middleware.ts                 # /admin guard, CSRF Origin check on mutating requests
+  middleware.ts                 # /admin guard, CSRF Origin check, Cache-Control
   styles/global.css
+scripts/
+  trace-runtime.mjs             # copies only the runtime-needed node_modules into .runtime/
 k8s/
-  kustomization.yaml
+  kustomization.yaml            # sets the image registry and tag
   namespace.yaml                # label profile-api/admin-client: "true"
   deployment.yaml
   service.yaml
   secret.example.yaml
 Dockerfile
 ```
+
+Tests are `*.test.ts` next to the code they cover, under `src/`.
 
 The shared `cloudflared` deployment lives in profile-api's `deploy/cluster`, not here.
 
@@ -257,8 +295,11 @@ Pages:
 
 ## 10. Deployment
 
-- **Image**: multi-stage `Dockerfile` (`node:20-alpine`).
-  - The runtime stage has only `dist/` and production dependencies, and runs as non-root.
+- **Image**: multi-stage `Dockerfile`.
+  - The build stage (`node:22-alpine`, on `$BUILDPLATFORM`) runs `npm run build`, then `scripts/trace-runtime.mjs`. That uses `@vercel/nft` to copy only the files `dist/server/entry.mjs` actually loads into `.runtime/` (about 3 MB instead of about 105 MB of production dependencies).
+  - The runtime stage is `alpine` with `libstdc++`, the `node` binary copied from `node:22-alpine`, a `node` user (uid 1000) and `.runtime/`. No npm or yarn. Keep the `alpine` tag on the same release as `node:22-alpine`'s base (`cat /etc/alpine-release`).
+  - Building on the host platform is safe only while every traced dependency is pure JavaScript. Never add a native module (such as `sharp`) to the server bundle.
+  - The result is about 140 MB on disk and about 26 MiB RSS when idle.
   - Environment: `HOST=0.0.0.0`, `PORT=4321`, `NODE_OPTIONS=--max-old-space-size=160`.
 - **`k8s/`** (namespace `steam-portfolio`, labelled `profile-api/admin-client: "true"` so profile-api's NetworkPolicy allows admin traffic):
   - **Deployment**: 1 replica.
@@ -287,7 +328,7 @@ Pages:
 
 ## 12. Build order
 
-Start this after profile-api reaches phase 4 (public read endpoints and OpenAPI). Each phase should leave the app building.
+Each phase should leave the app building. All eleven phases are complete. New work extends the existing pages and helpers.
 
 1. Scaffold Astro (server output, Node adapter, TS strict, Tailwind, React), `.env.example`, generated API types, and `src/lib/api`.
 2. Presentation helpers with Vitest tests. Base layout (Steam chrome + Deck nav).
@@ -300,3 +341,61 @@ Start this after profile-api reaches phase 4 (public read endpoints and OpenAPI)
 9. Contact and guestbook forwarding with moderation pages (needs profile-api phase 7).
 10. Wishlist, Replay, Store, Points Shop, easter eggs, and GA4.
 11. ARM64 Dockerfile and `k8s/` manifests.
+
+## 13. Implementation notes
+
+Decisions made while building that the spec above doesn't spell out. Keep them unless you mean to change the behaviour.
+
+**Config**
+
+- `security.checkOrigin` is off. Behind the tunnel the request URL is the internal cluster address, so Astro's own check would reject everything. `src/middleware.ts` compares `Origin` with `SITE_URL` instead.
+- `session.driver` is `memory`. The Node adapter's default is file storage, which breaks the no-disk-writes rule.
+- `image.service` is the passthrough service. The default pulls in `sharp`, a native module that breaks the multi-arch image. The site uses no Astro image optimisation.
+
+**API client**
+
+- Every helper in `src/lib/api` returns `ApiResult<T>`: `{ ok: true, data, status }` or `{ ok: false, status, error }`. `status` is `0` when profile-api is unreachable. Requests time out after 5 seconds.
+- `settle()` marks the current request as degraded on status `0` or `5xx`, through `AsyncLocalStorage`. The middleware then sends `Cache-Control: no-store` so Cloudflare doesn't cache an "Unable to load" page. This only covers fetches made before the response starts streaming, so pages fetch their data in the page frontmatter, not inside child components.
+- Use `isNotFound()` for 404s and render the not-found page with status 404.
+
+**Middleware**
+
+- It rejects every `POST`, `PUT`, `PATCH` and `DELETE` whose `Origin` isn't `SITE_URL`'s origin, with 403.
+- Without the session cookie, `/admin*` (except `/admin/login`) redirects with 303 to `/admin/login?next=...`, and `/api/admin*` returns 401 JSON.
+- Cache headers:
+  - `private, no-store` for `/admin*`, `/api/*` and any response with `Set-Cookie`.
+  - `no-store` for degraded pages.
+  - The public value for other 200 HTML responses that set no header of their own.
+  - `no-store` for everything else.
+- Redirect responses have immutable headers, so it builds a new `Response` when it needs to change them.
+
+**Forms and forwarding**
+
+- `/api/contact` and `/api/comments` share `src/pages/api/_forward.ts`. It caps bodies at 16 KB, and maps API responses as follows:
+  - 201 passes through.
+  - 400 and 413 pass through with `error.details`.
+  - 429 passes through with the API's message.
+  - Anything else becomes 503.
+- `clientIp()` reads `CF-Connecting-IP` only when `TRUST_CF_HEADERS` is true. Never forward a browser-supplied `X-Client-IP`, because profile-api trusts it for rate limits and the login lockout.
+- The API's field errors are fragments such as "is required", so the forms prefix the field label.
+
+**Admin**
+
+- Pages handle their own form POSTs on the server and then redirect (POST-redirect-GET), so they need almost no client JS. One-time notices travel in a short-lived HTTP-only flash cookie.
+- `/admin/{collection}/_new` is the create page. Real ids can't start with `_`.
+- On any 401 from the API, `src/lib/admin/guard.ts` clears the cookie and redirects to login. `next` is only followed when it starts with `/admin` and not `//`.
+- The status "until" field is read in the owner's time zone, not the server's.
+- `/api/admin/[...path]` refuses `login`, `logout` and malformed paths, caps bodies at 1 MiB, and clears the cookie on 401.
+
+**Client-side features**
+
+- localStorage keys are in `STORAGE_KEYS` (`src/lib/client/storage.ts`). Use `readJson` and `writeJson`, which never throw.
+- The Points Shop selection is applied before first paint by an inline script in `BaseLayout`. It sets `--profile-bg` (body background) and `--avatar-frame` (avatars use `box-shadow: var(--avatar-frame, none)`).
+- Card drops dispatch `CARDS_CHANGED_EVENT` (`src/lib/cards.ts`) after writing, because `storage` events don't fire in the same tab. Drops are skipped on `/admin*`.
+- The site-wide Konami listener is skipped on `/achievements`, which has its own. Both check the storage key first, so the toast shows only once.
+
+**Known data issues (fix in profile-api's seed or through `/admin`)**
+
+- `featuredBadgeId` is `graduated`, which is an achievement, not a certificate, so no featured badge shows.
+- The AWS skill's icon slug `amazonwebservices` doesn't exist on simpleicons, so it falls back to "AW".
+- The resume is on another domain, so "Add to Cart" opens it instead of downloading it.
