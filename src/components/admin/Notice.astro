@@ -1,0 +1,20 @@
+---
+interface Props {
+  kind: "ok" | "error" | "warning";
+  message?: string;
+}
+
+const { kind, message } = Astro.props;
+const styles = {
+  ok: "border-[#5c7e10] bg-[#5c7e10]/20 text-[#d2efa9]",
+  error: "border-[#b33] bg-[#b33]/20 text-[#ffb3b3]",
+  warning: "border-[#c9a227] bg-[#c9a227]/15 text-[#f5e3a3]",
+};
+const labels = { ok: "Success", error: "Error", warning: "Warning" };
+---
+
+<div role={kind === "ok" ? "status" : "alert"} class:list={["rounded-sm border px-4 py-3 text-sm", styles[kind]]}>
+  <span class="font-semibold">{labels[kind]}:</span>
+  {message}
+  <slot />
+</div>

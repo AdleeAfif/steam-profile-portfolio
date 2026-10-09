@@ -1,0 +1,26 @@
+---
+import Notice from "./Notice.astro";
+
+interface Props {
+  message: string;
+  extra?: [string, string][];
+}
+
+const { message, extra = [] } = Astro.props;
+---
+
+{
+  message && (
+    <Notice kind="error" message={message}>
+      {extra.length > 0 && (
+        <ul class="mt-1 list-disc pl-5">
+          {extra.map(([key, msg]) => (
+            <li>
+              <code>{key}</code>: {msg}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Notice>
+  )
+}

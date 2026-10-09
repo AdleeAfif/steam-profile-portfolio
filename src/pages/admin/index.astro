@@ -1,0 +1,165 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import Notice from "../../components/admin/Notice.astro";
+import { adminApi } from "../../lib/api/admin";
+import { getStatus } from "../../lib/api/public";
+import type { StatusKind, StatusUpdate } from "../../lib/api/types";
+import { errorDetails, errorMessage, isUnauthorized, sessionToken, toLogin } from "../../lib/admin/guard";
+import { setFlash, takeFlash } from "../../lib/admin/flash";
+import { formatDateTime, utcToZonedLocal, zonedLocalToUtc } from "../../lib/admin/time";
+import { STATUS_STYLES, statusExtraLine, statusStyle } from "../../lib/presentation/status";
+
+const api = adminApi(sessionToken(Astro.cookies));
+const KINDS = Object.keys(STATUS_STYLES) as StatusKind[];
+
+let formError = "";
+let untilError = "";
+let picked: string | null = null;
+let untilValue: string | null = null;
+
+const profileFirst = await api.getProfile();
+if (isUnauthorized(profileFirst)) return toLogin(Astro);
+const timeZone = profileFirst.ok ? profileFirst.data.status.timeZone : "UTC";
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData().catch(() => new FormData());
+  picked = String(form.get("override") ?? "auto");
+  untilValue = String(form.get("until") ?? "").trim();
+  const body: StatusUpdate = {};
+
+  if (picked !== "auto" && !KINDS.includes(picked as StatusKind)) {
+    formError = "Pick a status.";
+  } else if (picked === "auto") {
+    body.override = null;
+    if (untilValue) untilError = "\"Until\" only applies to a forced status.";
+  } else {
+    body.override = picked as StatusKind;
+    if (untilValue) {
+      const utc = zonedLocalToUtc(untilValue, timeZone);
+      if (!utc) untilError = "Enter a valid date and time.";
+      else body.overrideUntil = utc;
+    }
+  }
+
+  if (!formError && !untilError) {
+    const result = await api.putStatus(body);
+    if (isUnauthorized(result)) return toLogin(Astro);
+    if (result.ok) {
+      const label = picked === "auto" ? "Auto" : statusStyle(picked as StatusKind).label;
+      setFlash(Astro.cookies, "ok", `Status set to ${label}.`);
+      return Astro.redirect("/admin", 303);
+    }
+    formError = errorMessage(result);
+    untilError = errorDetails(result).overrideUntil ?? "";
+    Astro.response.status = result.status === 0 ? 503 : result.status;
+  } else {
+    Astro.response.status = 400;
+  }
+}
+
+const [profile, summary, status] = await Promise.all([
+  Astro.request.method === "POST" ? api.getProfile() : Promise.resolve(profileFirst),
+  api.summary(),
+  getStatus(),
+]);
+if (isUnauthorized(profile, summary)) return toLogin(Astro);
+
+const flash = takeFlash(Astro.cookies);
+const override = profile.ok ? profile.data.status.override : null;
+const overrideUntil = profile.ok ? profile.data.status.overrideUntil : undefined;
+const current = picked ?? override ?? "auto";
+const until = untilValue ?? (overrideUntil ? utcToZonedLocal(overrideUntil, timeZone) : "");
+const options = [{ value: "auto", label: "Auto", colour: "#66c0f4" }].concat(
+  KINDS.map((k) => ({ value: k, label: statusStyle(k).label, colour: statusStyle(k).colour })),
+);
+const kindName: Record<string, string> = { auto: "schedule", available: "Available", working: "Working", sleeping: "Sleeping", holiday: "Holiday" };
+---
+
+<AdminLayout title="Dashboard" flash={flash}>
+  <section class="steam-panel" aria-labelledby="status-h">
+    <h2 id="status-h" class="steam-panel-title">Status</h2>
+    {
+      status.ok ? (
+        <p class="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <span class="inline-block h-2.5 w-2.5 rounded-full" style={`background:${statusStyle(status.data.kind).colour}`} aria-hidden="true" />
+          <span class="font-semibold" style={`color:${statusStyle(status.data.kind).colour}`}>{statusStyle(status.data.kind).label}</span>
+          <span class="text-steam-muted">({status.data.kind})</span>
+          <span>{statusExtraLine(status.data)}</span>
+          {status.data.overrideUntil && <span class="text-steam-muted">Override until {formatDateTime(status.data.overrideUntil, timeZone)}</span>}
+        </p>
+      ) : (
+        <p class="mb-4 text-sm text-steam-muted">Current status is unavailable.</p>
+      )
+    }
+    {!profile.ok && <Notice kind="error" message={`Could not load the profile: ${errorMessage(profile)}`} />}
+    <form method="post" class="flex flex-col gap-4">
+      {formError && <Notice kind="error" message={formError} />}
+      <fieldset>
+        <legend class="mb-2 text-xs uppercase tracking-wide text-steam-muted">Quick switch</legend>
+        <div class="flex flex-wrap gap-2">
+          {
+            options.map((o) => (
+              <label class="cursor-pointer rounded-sm border border-black/50 bg-black/30 px-3 py-1.5 text-sm has-checked:border-steam-accent has-checked:bg-steam-accent/20 has-focus-visible:outline-2 has-focus-visible:outline-steam-accent">
+                <input type="radio" name="override" value={o.value} checked={current === o.value} class="sr-only" />
+                <span class="mr-1.5 inline-block h-2 w-2 rounded-full" style={`background:${o.colour}`} aria-hidden="true" />
+                {o.label}
+                <span class="text-xs text-steam-muted"> {kindName[o.value]}</span>
+              </label>
+            ))
+          }
+        </div>
+      </fieldset>
+      <div class="flex flex-col gap-1 sm:max-w-xs">
+        <label for="until" class="text-xs uppercase tracking-wide text-steam-muted">Until (optional, {timeZone} time)</label>
+        <input
+          id="until"
+          name="until"
+          type="datetime-local"
+          class="steam-input"
+          value={until}
+          aria-describedby={untilError ? "until-err until-help" : "until-help"}
+          aria-invalid={untilError ? "true" : undefined}
+        />
+        <p id="until-help" class="text-xs text-steam-muted">Leave empty for an open-ended override. Ignored for Auto.</p>
+        {untilError && <p id="until-err" class="text-xs text-[#ff7b7b]" role="alert">{untilError}</p>}
+      </div>
+      <div><button type="submit" class="btn-steam btn-green">Apply status</button></div>
+    </form>
+  </section>
+
+  <section class="steam-panel" aria-labelledby="summary-h">
+    <h2 id="summary-h" class="steam-panel-title">Inbox and moderation</h2>
+    {
+      summary.ok ? (
+        summary.data.items.length ? (
+          <table class="w-full text-left text-sm">
+            <thead class="text-xs uppercase text-steam-muted">
+              <tr>
+                <th class="py-1 font-normal">App</th>
+                <th class="py-1 font-normal">Unread messages</th>
+                <th class="py-1 font-normal">Pending comments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.data.items.map((item) => (
+                <tr class="border-t border-white/5">
+                  <td class="py-2">{item.app}</td>
+                  <td class="py-2">
+                    <a href={`/admin/inbox?app=${encodeURIComponent(item.app)}&read=false`}>{item.unreadMessages} unread</a>
+                  </td>
+                  <td class="py-2">
+                    <a href={`/admin/moderation?app=${encodeURIComponent(item.app)}`}>{item.pendingComments} pending</a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p class="text-sm text-steam-muted">No client apps yet.</p>
+        )
+      ) : (
+        <Notice kind="error" message={`Could not load the summary: ${errorMessage(summary)}`} />
+      )
+    }
+  </section>
+</AdminLayout>

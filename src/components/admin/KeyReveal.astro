@@ -1,0 +1,22 @@
+---
+import Notice from "./Notice.astro";
+
+interface Props {
+  app: string;
+  apiKey: string;
+}
+
+const { app, apiKey } = Astro.props;
+---
+
+<Notice kind="warning">
+  <p class="mt-1">
+    New server key for <code>{app}</code>. It is shown only once: copy it now into that app's
+    <code>PROFILE_API_KEY</code> secret. The previous key no longer works.
+  </p>
+  <div class="mt-2 flex flex-wrap items-center gap-2">
+    <label for="new-key" class="sr-only">New API key</label>
+    <input id="new-key" class="steam-input max-w-xl! font-mono text-xs" readonly value={apiKey} autocomplete="off" spellcheck="false" />
+    <button type="button" class="btn-steam btn-blue" data-copy="new-key">Copy</button>
+  </div>
+</Notice>

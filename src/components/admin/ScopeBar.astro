@@ -1,0 +1,51 @@
+---
+interface Filter {
+  value: string;
+  label: string;
+}
+
+interface Props {
+  app: string;
+  apps: string[];
+  param: string;
+  current: string;
+  filters: Filter[];
+}
+
+const { app, apps, param, current, filters } = Astro.props;
+const path = Astro.url.pathname;
+const href = (value: string) => `${path}?${new URLSearchParams({ app, [param]: value }).toString()}`;
+---
+
+<div class="steam-panel flex flex-wrap items-end justify-between gap-4 py-3!">
+  <form method="get" class="flex items-end gap-2">
+    <input type="hidden" name={param} value={current} />
+    <div class="flex flex-col gap-1">
+      <label for="app" class="text-xs uppercase tracking-wide text-steam-muted">App</label>
+      <select id="app" name="app" class="steam-input">
+        {apps.map((a) => <option value={a} selected={a === app}>{a}</option>)}
+      </select>
+    </div>
+    <button type="submit" class="btn-steam btn-blue">Switch</button>
+  </form>
+  <nav aria-label="Filter">
+    <ul class="flex gap-1">
+      {
+        filters.map((f) => (
+          <li>
+            <a
+              href={href(f.value)}
+              aria-current={f.value === current ? "page" : undefined}
+              class:list={[
+                "block rounded-sm px-3 py-1.5 text-sm no-underline",
+                f.value === current ? "bg-steam-accent/20 text-white" : "text-steam-text hover:bg-black/30",
+              ]}
+            >
+              {f.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+</div>

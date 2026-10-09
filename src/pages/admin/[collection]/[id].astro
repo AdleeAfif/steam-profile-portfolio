@@ -1,0 +1,181 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import FieldGrid from "../../../components/admin/FieldGrid.astro";
+import ErrorBanner from "../../../components/admin/ErrorBanner.astro";
+import Notice from "../../../components/admin/Notice.astro";
+import KeyReveal from "../../../components/admin/KeyReveal.astro";
+import { adminApi } from "../../../lib/api/admin";
+import { adminCollections } from "../../../lib/api/admin-collections";
+import {
+  COLLECTION_META,
+  ID_PATTERN,
+  idField,
+  isCollection,
+  parseFormState,
+  readFormState,
+  toFormState,
+  unmatchedErrors,
+  type FieldErrors,
+  type FormState,
+} from "../../../lib/admin/fields";
+import { errorDetails, errorMessage, isUnauthorized, sessionToken, toLogin } from "../../../lib/admin/guard";
+import { setFlash, takeFlash } from "../../../lib/admin/flash";
+
+const NEW = "_new";
+const { collection, id: rawId = "" } = Astro.params;
+if (!isCollection(collection)) {
+  return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain" } });
+}
+
+const meta = COLLECTION_META[collection];
+const creating = rawId === NEW;
+const token = sessionToken(Astro.cookies);
+const api = adminApi(token);
+const writes = adminCollections(token);
+const base = `/admin/${collection}`;
+const fields = creating ? [idField(meta.idLabel), ...meta.fields] : meta.fields;
+
+const existing = creating ? null : await api.get(collection, rawId);
+if (existing && isUnauthorized(existing)) return toLogin(Astro);
+const stored = existing?.ok ? (existing.data as unknown as Record<string, unknown>) : null;
+
+let state: FormState | null = null;
+let errors: FieldErrors = {};
+let banner = "";
+let rotatedKey = "";
+
+if (Astro.request.method === "POST" && (creating || stored)) {
+  const form = await Astro.request.formData().catch(() => new FormData());
+  const action = String(form.get("action") ?? "save");
+
+  if (action === "delete" && !creating) {
+    const result = await writes.remove(collection, rawId);
+    if (isUnauthorized(result)) return toLogin(Astro);
+    if (result.ok || result.status === 404) {
+      setFlash(Astro.cookies, "ok", `Deleted ${meta.singular} "${rawId}".`);
+      return Astro.redirect(base, 303);
+    }
+    banner = errorMessage(result);
+  } else if (action === "rotate" && collection === "clients" && !creating) {
+    const result = await api.rotateKey(rawId);
+    if (isUnauthorized(result)) return toLogin(Astro);
+    if (result.ok) rotatedKey = result.data.key;
+    else banner = errorMessage(result);
+  } else if (action === "save") {
+    state = readFormState(fields, form);
+    const parsed = parseFormState(fields, state);
+    errors = parsed.errors;
+    const body = parsed.body;
+    const id = creating ? String(body.id ?? "") : rawId;
+    if (creating && id && !ID_PATTERN.test(id)) {
+      errors.id = "must be 1-100 characters of letters, digits, '.', '_' or '-', starting with a letter or digit";
+    }
+
+    if (Object.keys(errors).length) {
+      banner = "Fix the highlighted fields.";
+    } else {
+      body.id = id;
+      if (meta.ordered) {
+        if (stored && typeof stored.order === "number") {
+          body.order = stored.order;
+        } else if (creating) {
+          const list = await api.list(collection);
+          if (isUnauthorized(list)) return toLogin(Astro);
+          const orders = list.ok ? list.data.items.map((item) => Number((item as { order?: number }).order ?? -1)) : [];
+          body.order = orders.length ? Math.max(...orders) + 1 : 0;
+        }
+      }
+      const result = creating ? await writes.create(collection, body) : await writes.replace(collection, id, body);
+      if (isUnauthorized(result)) return toLogin(Astro);
+      if (result.ok) {
+        setFlash(Astro.cookies, "ok", `${creating ? "Created" : "Saved"} ${meta.singular} "${id}".`);
+        return Astro.redirect(`${base}/${encodeURIComponent(id)}`, 303);
+      }
+      errors = errorDetails(result);
+      banner = errorMessage(result);
+      if (result.status === 409 && creating && !errors.id) errors.id = "an item with this id already exists";
+    }
+  } else {
+    banner = "Unknown action.";
+  }
+  if (banner) Astro.response.status = 400;
+}
+
+if (existing && !existing.ok) Astro.response.status = existing.status === 404 ? 404 : existing.status === 0 ? 503 : existing.status;
+
+const flash = takeFlash(Astro.cookies);
+const values = state ?? (stored ? toFormState(fields, stored) : creating ? defaults() : {});
+const title = creating ? `New ${meta.singular}` : `${meta.label} :: ${rawId}`;
+
+function defaults(): FormState {
+  const blank = toFormState(fields, {});
+  if (collection === "clients") return { ...blank, active: "on", features: ["comments", "messages"] };
+  if (collection === "reviews") return { ...blank, recommended: "on" };
+  return blank;
+}
+---
+
+<AdminLayout title={title} flash={flash}>
+  <p class="text-sm"><a href={base}>&larr; Back to {meta.label.toLowerCase()}</a></p>
+  {
+    existing && !existing.ok ? (
+      <Notice
+        kind="error"
+        message={existing.status === 404 ? `No ${meta.singular} with id "${rawId}".` : `Could not load: ${errorMessage(existing)}`}
+      />
+    ) : (
+      <>
+        {rotatedKey && <KeyReveal app={rawId} apiKey={rotatedKey} />}
+        <form method="post" class="flex flex-col gap-6" novalidate>
+          <ErrorBanner message={banner} extra={unmatchedErrors(errors, fields)} />
+          <section class="steam-panel">
+            {!creating && (
+              <p class="mb-4 text-sm">
+                <span class="text-xs uppercase tracking-wide text-steam-muted">{meta.idLabel ?? "ID"}</span>{" "}
+                <code>{rawId}</code>
+                {stored && typeof stored.updatedAt === "string" && (
+                  <span class="ml-3 text-xs text-steam-muted">Last updated {stored.updatedAt}</span>
+                )}
+              </p>
+            )}
+            <FieldGrid fields={fields} state={values} errors={errors} />
+          </section>
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" name="action" value="save" class="btn-steam btn-green">
+              {creating ? `Create ${meta.singular}` : "Save changes"}
+            </button>
+            <a href={base} class="btn-steam btn-blue">Cancel</a>
+          </div>
+        </form>
+        {!creating && (
+          <section class="steam-panel flex flex-wrap items-center gap-2" aria-label="Danger zone">
+            {collection === "clients" && (
+              <form method="post">
+                <button
+                  type="submit"
+                  name="action"
+                  value="rotate"
+                  class="btn-steam btn-blue"
+                  data-confirm={`Rotate the API key for ${rawId}? The current key stops working immediately.`}
+                >
+                  Rotate API key
+                </button>
+              </form>
+            )}
+            <form method="post">
+              <button
+                type="submit"
+                name="action"
+                value="delete"
+                class="btn-steam btn-blue hover:bg-[#b33]!"
+                data-confirm={`Delete ${meta.singular} "${rawId}"? This cannot be undone.`}
+              >
+                Delete {meta.singular}
+              </button>
+            </form>
+          </section>
+        )}
+      </>
+    )
+  }
+</AdminLayout>

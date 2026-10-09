@@ -1,0 +1,23 @@
+---
+import FieldInput from "./FieldInput.astro";
+import { fieldError, type Field, type FieldErrors, type FormState } from "../../lib/admin/fields";
+
+interface Props {
+  fields: Field[];
+  state: FormState;
+  errors: FieldErrors;
+}
+
+const { fields, state, errors } = Astro.props;
+const wide = new Set(["textarea", "lines", "json", "checkboxes", "csv"]);
+---
+
+<div class="grid gap-4 sm:grid-cols-2">
+  {
+    fields.map((field) => (
+      <div class:list={[wide.has(field.type) && "sm:col-span-2"]}>
+        <FieldInput field={field} value={state[field.name]} error={fieldError(errors, field.name)} />
+      </div>
+    ))
+  }
+</div>

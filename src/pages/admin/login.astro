@@ -1,0 +1,58 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import Notice from "../../components/admin/Notice.astro";
+import { login } from "../../lib/api/admin";
+import { safeNext } from "../../lib/admin/guard";
+import { clientIp, safeClientAddress } from "../../lib/http";
+import { readSession, writeSession } from "../../lib/session";
+
+const next = safeNext(Astro.url.searchParams.get("next"));
+let error = "";
+let username = "";
+
+if (Astro.request.method === "GET" && readSession(Astro.cookies)) {
+  return Astro.redirect(next, 303);
+}
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData().catch(() => new FormData());
+  username = String(form.get("username") ?? "").trim().slice(0, 100);
+  const password = String(form.get("password") ?? "");
+  const target = safeNext(String(form.get("next") ?? next));
+
+  if (!username || !password) {
+    error = "Enter your username and password.";
+    Astro.response.status = 400;
+  } else {
+    const ip = clientIp(Astro.request, safeClientAddress(() => Astro.clientAddress));
+    const result = await login(username, password.slice(0, 1024), ip);
+    if (result.ok) {
+      writeSession(Astro.cookies, result.data.token, result.data.expiresAt);
+      return Astro.redirect(target, 303);
+    }
+    Astro.response.status = result.status === 0 ? 503 : result.status;
+    if (result.status === 401) error = "Invalid username or password.";
+    else if (result.status === 429) error = result.error?.message ?? "Too many failed attempts. Try again later.";
+    else if (result.status === 0) error = "profile-api is unreachable. Try again in a moment.";
+    else error = result.error?.message ?? "Login failed.";
+  }
+}
+---
+
+<AdminLayout title="Sign in" bare>
+  <div class="steam-panel mx-auto w-full max-w-sm">
+    <form method="post" class="flex flex-col gap-4" novalidate>
+      {error && <Notice kind="error" message={error} />}
+      <input type="hidden" name="next" value={next} />
+      <div class="flex flex-col gap-1">
+        <label for="username" class="text-xs uppercase tracking-wide text-steam-muted">Account name</label>
+        <input id="username" name="username" class="steam-input" autocomplete="username" required value={username} autofocus />
+      </div>
+      <div class="flex flex-col gap-1">
+        <label for="password" class="text-xs uppercase tracking-wide text-steam-muted">Password</label>
+        <input id="password" name="password" type="password" class="steam-input" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn-steam btn-green">Sign in</button>
+    </form>
+  </div>
+</AdminLayout>

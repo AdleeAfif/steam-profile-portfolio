@@ -1,0 +1,116 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import Notice from "../../components/admin/Notice.astro";
+import ScopeBar from "../../components/admin/ScopeBar.astro";
+import { adminApi } from "../../lib/api/admin";
+import { errorMessage, isUnauthorized, sessionToken, toLogin } from "../../lib/admin/guard";
+import { setFlash, takeFlash } from "../../lib/admin/flash";
+import { resolveApp, withParams } from "../../lib/admin/apps";
+import { formatDateTime } from "../../lib/admin/time";
+
+const PAGE_SIZE = 20;
+const api = adminApi(sessionToken(Astro.cookies));
+const params = Astro.url.searchParams;
+const scope = await resolveApp(api, params.get("app"));
+if (isUnauthorized(scope.clients)) return toLogin(Astro);
+const { app, apps } = scope;
+
+const readParam = params.get("read");
+const filter = readParam === "true" || readParam === "false" ? readParam : "all";
+const cursor = params.get("cursor") || undefined;
+const self = withParams(Astro.url, { app });
+
+let actionError = "";
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData().catch(() => new FormData());
+  const action = String(form.get("action") ?? "");
+  const id = String(form.get("id") ?? "");
+  const result =
+    action === "read" || action === "unread"
+      ? await api.updateMessage(app, id, action === "read")
+      : action === "delete"
+        ? await api.deleteMessage(app, id)
+        : null;
+  if (result && isUnauthorized(result)) return toLogin(Astro);
+  if (result?.ok) {
+    const done = { read: "Marked as read.", unread: "Marked as unread.", delete: "Message deleted." }[action];
+    setFlash(Astro.cookies, "ok", done ?? "Done.");
+    return Astro.redirect(self, 303);
+  }
+  actionError = result ? errorMessage(result) : "Unknown action.";
+  Astro.response.status = 400;
+}
+
+const [page, profile] = await Promise.all([
+  api.messages(app, { read: filter === "all" ? undefined : filter === "true", cursor, limit: PAGE_SIZE }),
+  api.getProfile(),
+]);
+if (isUnauthorized(page)) return toLogin(Astro);
+if (!page.ok && page.status === 400 && cursor) return Astro.redirect(withParams(Astro.url, { cursor: null }), 303);
+
+const flash = takeFlash(Astro.cookies);
+const timeZone = profile.ok ? profile.data.status.timeZone : "UTC";
+---
+
+<AdminLayout title="Inbox" flash={flash}>
+  <ScopeBar
+    app={app}
+    apps={apps}
+    param="read"
+    current={filter}
+    filters={[
+      { value: "all", label: "All" },
+      { value: "false", label: "Unread" },
+      { value: "true", label: "Read" },
+    ]}
+  />
+  {actionError && <Notice kind="error" message={actionError} />}
+  {
+    !page.ok ? (
+      <Notice kind="error" message={`Could not load messages: ${errorMessage(page)}`} />
+    ) : page.data.items.length === 0 ? (
+      <p class="steam-panel text-sm text-steam-muted">No messages{cursor ? " on this page" : ""}.</p>
+    ) : (
+      <ul class="flex flex-col gap-2">
+        {page.data.items.map((m) => (
+          <li class:list={["steam-panel border-l-2", m.read ? "border-transparent" : "border-steam-accent"]}>
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <p>
+                <span class="font-semibold text-white">{m.name}</span>{" "}
+                <a href={`mailto:${m.email}`} class="text-sm">
+                  {m.email}
+                </a>
+                <span class:list={["ml-2 rounded-sm px-1.5 py-0.5 text-xs", m.read ? "bg-black/30 text-steam-muted" : "bg-steam-accent/20 text-steam-accent"]}>
+                  {m.read ? "Read" : "Unread"}
+                </span>
+              </p>
+              <time datetime={m.createdAt} class="text-xs text-steam-muted">
+                {formatDateTime(m.createdAt, timeZone)}
+              </time>
+            </div>
+            <p class="mt-2 whitespace-pre-wrap break-words text-sm">{m.message}</p>
+            <form method="post" action={self} class="mt-3 flex gap-2">
+              <input type="hidden" name="id" value={m.id} />
+              <button type="submit" name="action" value={m.read ? "unread" : "read"} class="btn-steam btn-blue">
+                {m.read ? "Mark unread" : "Mark read"}
+              </button>
+              <button
+                type="submit"
+                name="action"
+                value="delete"
+                class="btn-steam btn-blue hover:bg-[#b33]!"
+                data-confirm={`Delete the message from ${m.name}? This cannot be undone.`}
+              >
+                Delete
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  <nav aria-label="Pagination" class="flex gap-2">
+    {cursor && <a href={withParams(Astro.url, { app, cursor: null })} class="btn-steam btn-blue">Newest</a>}
+    {page.ok && page.data.nextCursor && <a href={withParams(Astro.url, { app, cursor: page.data.nextCursor })} class="btn-steam btn-blue">Older</a>}
+  </nav>
+</AdminLayout>

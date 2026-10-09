@@ -1,0 +1,101 @@
+---
+import "../styles/global.css";
+import Notice from "../components/admin/Notice.astro";
+import { COLLECTIONS } from "../lib/api/types";
+import { COLLECTION_META } from "../lib/admin/fields";
+import type { Flash } from "../lib/admin/flash";
+
+interface Props {
+  title: string;
+  bare?: boolean;
+  flash?: Flash | null;
+}
+
+const { title, bare = false, flash = null } = Astro.props;
+const path = Astro.url.pathname.replace(/\/$/, "") || "/";
+
+const nav = [
+  { label: "Dashboard", href: "/admin" },
+  { label: "Profile", href: "/admin/profile" },
+  ...COLLECTIONS.filter((c) => c !== "clients").map((c) => ({ label: COLLECTION_META[c].label, href: `/admin/${c}` })),
+  { label: "Inbox", href: "/admin/inbox" },
+  { label: "Moderation", href: "/admin/moderation" },
+  { label: "Clients", href: "/admin/clients" },
+];
+const isCurrent = (href: string) => (href === "/admin" ? path === "/admin" : path === href || path.startsWith(`${href}/`));
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="same-origin" />
+    <title>{`Admin :: ${title}`}</title>
+  </head>
+  <body class="text-steam-text">
+    <a href="#main" class="sr-only-focusable btn-steam btn-blue absolute left-2 top-2 z-50">Skip to content</a>
+    <header class="bg-steam-header">
+      <div class="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-3">
+        <a href="/admin" class="text-lg font-semibold tracking-wide text-white no-underline">STEAM PORTFOLIO <span class="text-steam-accent">ADMIN</span></a>
+        {
+          !bare && (
+            <div class="flex items-center gap-3">
+              <a href="/" class="text-sm text-steam-muted">View site</a>
+              <form method="post" action="/admin/logout">
+                <button type="submit" class="btn-steam btn-blue">Log out</button>
+              </form>
+            </div>
+          )
+        }
+      </div>
+    </header>
+    <div class:list={["mx-auto max-w-[1200px] px-4 py-6", !bare && "md:grid md:grid-cols-[200px_1fr] md:gap-6"]}>
+      {
+        !bare && (
+          <nav aria-label="Admin" class="mb-6 md:mb-0">
+            <ul class="flex flex-wrap gap-1 md:flex-col">
+              {nav.map((item) => (
+                <li>
+                  <a
+                    href={item.href}
+                    aria-current={isCurrent(item.href) ? "page" : undefined}
+                    class:list={[
+                      "block rounded-sm px-3 py-1.5 text-sm no-underline",
+                      isCurrent(item.href) ? "bg-steam-accent/20 text-white" : "text-steam-text hover:bg-black/30",
+                    ]}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+      <main id="main" class="flex min-w-0 flex-col gap-4">
+        <h1 class="text-2xl font-light text-white">{title}</h1>
+        {flash && <Notice kind={flash.kind} message={flash.message} />}
+        <slot />
+      </main>
+    </div>
+    <script>
+      document.addEventListener("submit", (event) => {
+        const submitter = (event as SubmitEvent).submitter as HTMLElement | null;
+        const message = submitter?.dataset.confirm;
+        if (message && !window.confirm(message)) event.preventDefault();
+      });
+      document.addEventListener("click", (event) => {
+        const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-copy]");
+        if (!button) return;
+        const source = document.getElementById(button.dataset.copy ?? "");
+        const text = source instanceof HTMLInputElement ? source.value : (source?.textContent ?? "");
+        navigator.clipboard.writeText(text).then(
+          () => (button.textContent = "Copied"),
+          () => (button.textContent = "Copy failed - select and copy manually"),
+        );
+      });
+    </script>
+  </body>
+</html>

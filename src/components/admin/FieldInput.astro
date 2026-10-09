@@ -1,0 +1,125 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import type { Field, FormValue } from "../../lib/admin/fields";
+
+interface Props {
+  field: Field;
+  value: FormValue | undefined;
+  error?: string;
+  readonly?: boolean;
+}
+
+const { field, value, error, readonly = false } = Astro.props;
+const id = `f-${field.name.replace(/[^A-Za-z0-9_-]/g, "-")}`;
+const describedBy = [field.help ? `${id}-help` : "", error ? `${id}-err` : ""].filter(Boolean).join(" ") || undefined;
+const text = Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+const list = Array.isArray(value) ? value : value ? [value] : [];
+const inputType: Partial<Record<Field["type"], HTMLAttributes<"input">["type"]>> = {
+  text: "text",
+  url: "url",
+  email: "email",
+  date: "date",
+  month: "month",
+  number: "number",
+  integer: "number",
+  color: "text",
+};
+const isGroup = field.type === "checkboxes" || field.type === "hours" || field.type === "boolean";
+const swatch = field.type === "color" && text ? (text.startsWith("#") ? text : `#${text}`) : "";
+const invalid = error ? "true" : undefined;
+---
+
+<div class="flex flex-col gap-1">
+  {
+    isGroup ? (
+      <fieldset aria-describedby={describedBy} aria-invalid={invalid} class="flex flex-col gap-1">
+        <legend class="mb-1 text-xs uppercase tracking-wide text-steam-muted">
+          {field.label}
+          {field.required && field.type !== "boolean" && <span aria-hidden="true"> *</span>}
+        </legend>
+        {field.type === "boolean" && (
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" name={field.name} checked={text === "on"} disabled={readonly} />
+            {field.label}
+          </label>
+        )}
+        {field.type === "checkboxes" && (
+          <div class="flex flex-wrap gap-3">
+            {field.options?.map((o) => (
+              <label class="inline-flex items-center gap-1.5 text-sm">
+                <input type="checkbox" name={field.name} value={o.value} checked={list.includes(o.value)} disabled={readonly} />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        )}
+        {field.type === "hours" && (
+          <div class="flex items-center gap-2 text-sm">
+            <label class="inline-flex items-center gap-1.5">
+              From
+              <input class="steam-input w-20!" type="number" name={field.name} min="0" max="24" step="1" value={list[0] ?? ""} required readonly={readonly} />
+            </label>
+            <label class="inline-flex items-center gap-1.5">
+              to
+              <input class="steam-input w-20!" type="number" name={field.name} min="0" max="24" step="1" value={list[1] ?? ""} required readonly={readonly} />
+            </label>
+          </div>
+        )}
+      </fieldset>
+    ) : (
+      <>
+        <label for={id} class="text-xs uppercase tracking-wide text-steam-muted">
+          {field.label}
+          {field.required && <span aria-hidden="true"> *</span>}
+        </label>
+        {field.type === "select" ? (
+          <select id={id} name={field.name} class="steam-input" required={field.required} disabled={readonly} aria-describedby={describedBy} aria-invalid={invalid}>
+            {!field.required && <option value="">-</option>}
+            {field.required && !text && <option value="">Choose...</option>}
+            {field.options?.map((o) => (
+              <option value={o.value} selected={o.value === text}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ) : field.type === "textarea" || field.type === "lines" || field.type === "json" || field.type === "csv" ? (
+          <textarea
+            id={id}
+            name={field.name}
+            class:list={["steam-input", field.type === "json" && "font-mono text-xs"]}
+            rows={field.type === "json" ? 8 : field.type === "csv" ? 2 : 4}
+            required={field.required && field.type === "textarea"}
+            readonly={readonly}
+            aria-describedby={describedBy}
+            aria-invalid={invalid}
+            spellcheck={field.type === "json" || field.type === "csv" ? "false" : undefined}
+          >{text}</textarea>
+        ) : (
+          <div class="flex items-center gap-2">
+            {field.type === "color" && (
+              <span aria-hidden="true" class="inline-block h-6 w-6 shrink-0 rounded-sm border border-black" style={swatch ? `background:${swatch}` : undefined} />
+            )}
+            <input
+              id={id}
+              name={field.name}
+              type={inputType[field.type] ?? "text"}
+              class="steam-input"
+              value={text}
+              required={field.required}
+              readonly={readonly}
+              maxlength={field.maxLength}
+              min={field.min}
+              max={field.max}
+              step={field.type === "number" ? "any" : field.type === "integer" ? "1" : undefined}
+              pattern={field.type === "color" ? "#?[0-9A-Fa-f]{3,8}" : undefined}
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+            />
+          </div>
+        )}
+      </>
+    )
+  }
+  {field.help && <p id={`${id}-help`} class="text-xs text-steam-muted">{field.help}</p>}
+  {error && <p id={`${id}-err`} class="text-xs text-[#ff7b7b]" role="alert">{error}</p>}
+</div>

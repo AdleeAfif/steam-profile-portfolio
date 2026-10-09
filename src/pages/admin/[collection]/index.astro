@@ -1,0 +1,166 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import Notice from "../../../components/admin/Notice.astro";
+import KeyReveal from "../../../components/admin/KeyReveal.astro";
+import { adminApi } from "../../../lib/api/admin";
+import { adminCollections } from "../../../lib/api/admin-collections";
+import { COLLECTION_META, displayValue, isCollection } from "../../../lib/admin/fields";
+import { errorMessage, isUnauthorized, sessionToken, toLogin } from "../../../lib/admin/guard";
+import { setFlash, takeFlash } from "../../../lib/admin/flash";
+
+const { collection } = Astro.params;
+if (!isCollection(collection)) {
+  return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain" } });
+}
+
+const meta = COLLECTION_META[collection];
+const token = sessionToken(Astro.cookies);
+const api = adminApi(token);
+const writes = adminCollections(token);
+const base = `/admin/${collection}`;
+
+let actionError = "";
+let rotated: { app: string; key: string } | null = null;
+
+let list = await api.list(collection);
+if (isUnauthorized(list)) return toLogin(Astro);
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData().catch(() => new FormData());
+  const action = String(form.get("action") ?? "");
+  const id = String(form.get("id") ?? "");
+  const items = list.ok ? (list.data.items as { id: string }[]) : [];
+  const index = items.findIndex((item) => item.id === id);
+
+  if (index < 0) {
+    actionError = list.ok ? "That item no longer exists. The list has been refreshed." : errorMessage(list);
+  } else if (["up", "down", "top", "bottom"].includes(action) && meta.ordered) {
+    const ids = items.map((item) => item.id);
+    ids.splice(index, 1);
+    const target = { up: index - 1, down: index + 1, top: 0, bottom: ids.length }[action] ?? index;
+    ids.splice(Math.max(0, Math.min(ids.length, target)), 0, id);
+    const result = await writes.reorder(collection, ids);
+    if (isUnauthorized(result)) return toLogin(Astro);
+    if (result.ok) return Astro.redirect(`${base}?moved=${encodeURIComponent(id)}#item-${encodeURIComponent(id)}`, 303);
+    actionError = errorMessage(result);
+  } else if (action === "delete") {
+    const result = await writes.remove(collection, id);
+    if (isUnauthorized(result)) return toLogin(Astro);
+    if (result.ok || result.status === 404) {
+      setFlash(Astro.cookies, "ok", `Deleted ${meta.singular} "${id}".`);
+      return Astro.redirect(base, 303);
+    }
+    actionError = errorMessage(result);
+  } else if (action === "rotate" && collection === "clients") {
+    const result = await api.rotateKey(id);
+    if (isUnauthorized(result)) return toLogin(Astro);
+    if (result.ok) rotated = { app: id, key: result.data.key };
+    else actionError = errorMessage(result);
+  } else {
+    actionError = "Unknown action.";
+  }
+
+  if (actionError) {
+    Astro.response.status = 400;
+    list = await api.list(collection);
+  }
+}
+
+const flash = takeFlash(Astro.cookies);
+const moved = Astro.url.searchParams.get("moved");
+const items = list.ok ? (list.data.items as unknown as Record<string, unknown>[]) : [];
+---
+
+<AdminLayout title={meta.label} flash={flash}>
+  {actionError && <Notice kind="error" message={actionError} />}
+  {rotated && <KeyReveal app={rotated.app} apiKey={rotated.key} />}
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <p class="text-sm text-steam-muted">
+      {items.length} {items.length === 1 ? "item" : "items"}{meta.ordered ? ", shown in display order" : ""}.
+    </p>
+    <a href={`${base}/_new`} class="btn-steam btn-green">New {meta.singular}</a>
+  </div>
+  {
+    !list.ok ? (
+      <Notice kind="error" message={`Could not load ${meta.label.toLowerCase()}: ${errorMessage(list)}`} />
+    ) : items.length === 0 ? (
+      <p class="steam-panel text-sm text-steam-muted">Nothing here yet.</p>
+    ) : (
+      <ol class="flex flex-col gap-1">
+        {items.map((item, i) => {
+          const id = String(item.id);
+          const title = displayValue(item[meta.titleField]) || id;
+          return (
+            <li
+              id={`item-${id}`}
+              class:list={["steam-panel flex flex-wrap items-center gap-3 py-2!", moved === id && "outline outline-1 outline-steam-accent"]}
+            >
+              {meta.ordered && <span class="w-6 text-right text-xs text-steam-muted">{i + 1}</span>}
+              {typeof item.color === "string" && (
+                <span aria-hidden="true" class="inline-block h-4 w-4 rounded-sm" style={`background:${item.color}`} />
+              )}
+              <div class="min-w-0 flex-1">
+                <a href={`${base}/${encodeURIComponent(id)}`} class="font-semibold">
+                  {title}
+                </a>
+                <span class="ml-2 text-xs text-steam-muted">{id}</span>
+                <p class="truncate text-xs text-steam-muted">
+                  {meta.metaFields
+                    .map((f) => displayValue(item[f]))
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              <form method="post" class="flex flex-wrap items-center gap-1">
+                <input type="hidden" name="id" value={id} />
+                {meta.ordered && (
+                  <>
+                    <button type="submit" name="action" value="up" class="btn-steam btn-blue px-2!" disabled={i === 0} aria-label={`Move ${title} up`} title="Move up">
+                      ↑
+                    </button>
+                    <button
+                      type="submit"
+                      name="action"
+                      value="down"
+                      class="btn-steam btn-blue px-2!"
+                      disabled={i === items.length - 1}
+                      aria-label={`Move ${title} down`}
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                  </>
+                )}
+                <a href={`${base}/${encodeURIComponent(id)}`} class="btn-steam btn-blue" aria-label={`Edit ${title}`}>
+                  Edit
+                </a>
+                {collection === "clients" && (
+                  <button
+                    type="submit"
+                    name="action"
+                    value="rotate"
+                    class="btn-steam btn-blue"
+                    data-confirm={`Rotate the API key for ${id}? The current key stops working immediately.`}
+                    aria-label={`Rotate API key for ${title}`}
+                  >
+                    Rotate key
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  name="action"
+                  value="delete"
+                  class="btn-steam btn-blue hover:bg-[#b33]!"
+                  data-confirm={`Delete ${meta.singular} "${title}"? This cannot be undone.`}
+                  aria-label={`Delete ${title}`}
+                >
+                  Delete
+                </button>
+              </form>
+            </li>
+          );
+        })}
+      </ol>
+    )
+  }
+</AdminLayout>

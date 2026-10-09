@@ -1,0 +1,88 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import FieldGrid from "../../components/admin/FieldGrid.astro";
+import ErrorBanner from "../../components/admin/ErrorBanner.astro";
+import Notice from "../../components/admin/Notice.astro";
+import { adminApi } from "../../lib/api/admin";
+import type { Profile } from "../../lib/api/types";
+import { errorDetails, errorMessage, isUnauthorized, sessionToken, toLogin } from "../../lib/admin/guard";
+import { setFlash, takeFlash } from "../../lib/admin/flash";
+import {
+  PROFILE_FIELDS,
+  STATUS_CONFIG_FIELDS,
+  parseFormState,
+  readFormState,
+  toFormState,
+  unmatchedErrors,
+  type FieldErrors,
+  type FormState,
+} from "../../lib/admin/fields";
+
+const api = adminApi(sessionToken(Astro.cookies));
+const fields = [...PROFILE_FIELDS, ...STATUS_CONFIG_FIELDS];
+
+const profile = await api.getProfile();
+if (isUnauthorized(profile)) return toLogin(Astro);
+
+let state: FormState | null = null;
+let errors: FieldErrors = {};
+let banner = "";
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData().catch(() => new FormData());
+  state = readFormState(fields, form);
+  const parsed = parseFormState(fields, state);
+  errors = parsed.errors;
+
+  if (Object.keys(errors).length) {
+    banner = "Fix the highlighted fields.";
+    Astro.response.status = 400;
+  } else {
+    const body = parsed.body as Record<string, unknown> & { status: Record<string, unknown> };
+    const stored = profile.ok ? profile.data.status : null;
+    body.status = { override: stored?.override ?? null, ...body.status };
+    if (stored?.overrideUntil) body.status.overrideUntil = stored.overrideUntil;
+
+    const result = await api.putProfile(body as unknown as Profile);
+    if (isUnauthorized(result)) return toLogin(Astro);
+    if (result.ok) {
+      setFlash(Astro.cookies, "ok", "Profile saved.");
+      return Astro.redirect("/admin/profile", 303);
+    }
+    errors = errorDetails(result);
+    banner = errorMessage(result);
+    Astro.response.status = result.status === 0 ? 503 : result.status;
+  }
+}
+
+const flash = takeFlash(Astro.cookies);
+const values = state ?? (profile.ok ? toFormState(fields, profile.data as unknown as Record<string, unknown>) : null);
+---
+
+<AdminLayout title="Profile" flash={flash}>
+  {
+    profile.ok || profile.status === 404 ? (
+      <form method="post" class="flex flex-col gap-6" novalidate>
+        <ErrorBanner message={banner} extra={unmatchedErrors(errors, fields)} />
+        {profile.status === 404 && <Notice kind="warning" message="No profile yet. Saving creates it." />}
+        <section class="steam-panel">
+          <h2 class="steam-panel-title">Profile</h2>
+          <FieldGrid fields={PROFILE_FIELDS} state={values ?? {}} errors={errors} />
+        </section>
+        <section class="steam-panel">
+          <h2 class="steam-panel-title">Status schedule</h2>
+          <p class="mb-4 text-xs text-steam-muted">
+            The override is set from the dashboard quick switch and is kept as is when saving here.
+          </p>
+          <FieldGrid fields={STATUS_CONFIG_FIELDS} state={values ?? {}} errors={errors} />
+        </section>
+        <div class="flex gap-2">
+          <button type="submit" class="btn-steam btn-green">Save profile</button>
+          <a href="/admin/profile" class="btn-steam btn-blue">Discard changes</a>
+        </div>
+      </form>
+    ) : (
+      <Notice kind="error" message={`Could not load the profile: ${errorMessage(profile)}`} />
+    )
+  }
+</AdminLayout>
