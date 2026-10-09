@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+.env
+.env.*
+!.env.example
+k8s/secret.yaml
+*.log
+.DS_Store

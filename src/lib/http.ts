@@ -1,0 +1,39 @@
+import { SITE_URL, TRUST_CF_HEADERS } from "astro:env/server";
+
+export const PUBLIC_CACHE = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+export const PRIVATE_CACHE = "private, no-store";
+
+export function clientIp(request: Request, fallback?: string): string | null {
+  if (TRUST_CF_HEADERS) {
+    const ip = request.headers.get("CF-Connecting-IP")?.trim();
+    if (ip) return ip;
+    return null;
+  }
+  return fallback ?? null;
+}
+
+export function safeClientAddress(getter: () => string): string | undefined {
+  try {
+    return getter();
+  } catch {
+    return undefined;
+  }
+}
+
+export function siteOrigin(): string {
+  return new URL(SITE_URL).origin;
+}
+
+export function isAllowedOrigin(request: Request): boolean {
+  const origin = request.headers.get("Origin");
+  if (!origin) return false;
+  return origin === siteOrigin();
+}
+
+export function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  return Response.json(body, { status, headers: { "Cache-Control": PRIVATE_CACHE, ...headers } });
+}
+
+export function apiErrorResponse(status: number, code: string, message: string): Response {
+  return jsonResponse({ error: { code, message } }, status);
+}

@@ -1,0 +1,15 @@
+---
+interface Props {
+  what?: string;
+}
+
+const { what = "this section" } = Astro.props;
+---
+
+<div role="status" class="flex items-center gap-3 rounded-sm border border-black/40 bg-black/30 px-4 py-3 text-sm">
+  <span aria-hidden="true" class="text-lg text-steam-muted">⚠</span>
+  <div>
+    <p class="text-steam-text">Unable to load {what}.</p>
+    <p class="text-xs text-steam-muted">The Steam servers are too busy to handle your request. Please try again later.</p>
+  </div>
+</div>

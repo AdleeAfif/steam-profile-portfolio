@@ -1,0 +1,208 @@
+---
+import "../styles/global.css";
+import { PUBLIC_GA_ID, SITE_URL } from "astro:env/server";
+import { BACKGROUNDS, FRAMES } from "../lib/shop";
+import { STORAGE_KEYS } from "../lib/client/storage";
+
+interface Props {
+  title: string;
+  description?: string;
+  wide?: boolean;
+}
+
+const { title, description = "Adlee Afif - Backend Engineer from Malaysia. A developer portfolio styled after a Steam Community profile." } =
+  Astro.props;
+const path = Astro.url.pathname;
+const canonical = new URL(path, SITE_URL).toString();
+const fullTitle = title === "Profile" ? "Steam Community :: adlee" : `Steam Community :: adlee :: ${title}`;
+
+const top = [
+  { label: "STORE", href: "/store", match: ["/store", "/shop"] },
+  { label: "LIBRARY", href: "/games", match: ["/games"] },
+  { label: "COMMUNITY", href: "/achievements", match: ["/achievements"] },
+];
+const profileMenu = [
+  { label: "Badges", href: "/badges" },
+  { label: "Inventory", href: "/inventory" },
+  { label: "Games", href: "/games" },
+  { label: "Achievements", href: "/achievements" },
+  { label: "Wishlist", href: "/wishlist" },
+  { label: "Replay", href: "/replay" },
+  { label: "Points Shop", href: "/shop" },
+];
+const deck = [
+  { label: "Profile", href: "/", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z" },
+  { label: "Library", href: "/games", icon: "M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.8-1 3.2 15.5-3.8 1z" },
+  { label: "Inventory", href: "/inventory", icon: "M4 7h16v13H4zM8 7V4h8v3M4 12h16" },
+  { label: "Badges", href: "/badges", icon: "M12 2 15 8l6 .9-4.5 4.3 1 6.3L12 16.6 6.5 19.5l1-6.3L3 8.9 9 8z" },
+  { label: "Store", href: "/store", icon: "M3 4h2l2.4 11h11l2-8H6.3M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" },
+];
+
+const isActive = (href: string, match?: string[]) =>
+  (match ?? [href]).some((m) => (m === "/" ? path === "/" : path === m || path.startsWith(`${m}/`)));
+const profileActive = path === "/" || ["/badges", "/inventory", "/wishlist", "/replay"].some((m) => isActive(m));
+
+const backgrounds = Object.fromEntries(BACKGROUNDS.map((b) => [b.id, b.css]));
+const frames = Object.fromEntries(FRAMES.map((f) => [f.id, f.css]));
+const shopKey = STORAGE_KEYS.shop;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="profile" />
+    <meta name="theme-color" content="#171a21" />
+    <script is:inline define:vars={{ backgrounds, frames, shopKey }}>
+      try {
+        const sel = JSON.parse(localStorage.getItem(shopKey) || "null");
+        if (sel && backgrounds[sel.background]) {
+          document.documentElement.style.setProperty("--profile-bg", backgrounds[sel.background]);
+        }
+        if (sel && frames[sel.frame]) {
+          document.documentElement.style.setProperty("--avatar-frame", frames[sel.frame]);
+        }
+      } catch {
+        /* storage disabled */
+      }
+    </script>
+    {
+      PUBLIC_GA_ID && (
+        <>
+          <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${PUBLIC_GA_ID}`} />
+          <script is:inline define:vars={{ gaId: PUBLIC_GA_ID }}>
+            window.dataLayer = window.dataLayer || [];
+            function gtag() {
+              // gtag.js only accepts the arguments object, not an array
+              // eslint-disable-next-line prefer-rest-params
+              window.dataLayer.push(arguments);
+            }
+            gtag("js", new Date());
+            gtag("config", gaId);
+          </script>
+        </>
+      )
+    }
+    <slot name="head" />
+  </head>
+  <body class="flex min-h-screen flex-col pb-16 md:pb-0">
+    <a href="#main" class="sr-only-focusable fixed top-2 left-2 z-50 bg-steam-header px-3 py-2">Skip to content</a>
+
+    <header class="hidden bg-steam-header md:block">
+      <nav aria-label="Main" class="mx-auto flex h-[104px] max-w-[976px] items-center gap-8 px-4">
+        <a href="/" class="flex items-center gap-2 text-white no-underline hover:text-white" aria-label="adlee home">
+          <span aria-hidden="true" class="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#66c0f4] to-[#1a44c2] text-lg font-black">
+            A
+          </span>
+          <span class="text-xl font-light tracking-[0.2em]">ADLEE</span>
+        </a>
+        <ul class="flex items-center gap-6 text-[15px] font-medium tracking-wide">
+          {
+            top.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  aria-current={isActive(item.href, item.match) ? "page" : undefined}
+                  class:list={[
+                    "border-b-[3px] pb-1 no-underline",
+                    isActive(item.href, item.match)
+                      ? "border-steam-accent text-steam-accent"
+                      : "border-transparent text-steam-text hover:text-white",
+                  ]}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+          <li class="relative">
+            <details class="group" data-nav-dropdown>
+              <summary
+                class:list={[
+                  "flex cursor-pointer list-none items-center gap-1 border-b-[3px] pb-1 [&::-webkit-details-marker]:hidden",
+                  profileActive ? "border-steam-accent text-steam-accent" : "border-transparent text-steam-text hover:text-white",
+                ]}
+              >
+                PROFILE <span aria-hidden="true" class="text-xs transition group-open:rotate-180">▾</span>
+              </summary>
+              <ul class="absolute top-full left-0 z-40 mt-2 min-w-48 bg-[#3d4450] py-1 text-sm font-normal shadow-xl shadow-black/50">
+                <li>
+                  <a href="/" class="block px-4 py-2 text-steam-text no-underline hover:bg-[#dcdedf] hover:text-[#171a21]">Profile</a>
+                </li>
+                {
+                  profileMenu.map((item) => (
+                    <li>
+                      <a
+                        href={item.href}
+                        aria-current={isActive(item.href) ? "page" : undefined}
+                        class="block px-4 py-2 text-steam-text no-underline hover:bg-[#dcdedf] hover:text-[#171a21]"
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))
+                }
+              </ul>
+            </details>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <header class="flex h-12 items-center justify-center bg-steam-header md:hidden">
+      <a href="/" class="text-lg font-light tracking-[0.2em] text-white no-underline">ADLEE</a>
+    </header>
+
+    <main id="main" class="mx-auto w-full max-w-[976px] flex-1 px-2 py-6 sm:px-4">
+      <slot />
+    </main>
+
+    <footer class="mt-8 bg-steam-header py-6 text-center text-xs text-steam-muted">
+      <div class="mx-auto max-w-[976px] space-y-1 px-4">
+        <p>&copy; {new Date().getFullYear()} Adlee Afif. Built with Astro.</p>
+        <p>
+          This is a personal portfolio styled after the Steam Community profile. It is not affiliated with, endorsed by or
+          sponsored by Valve Corporation. Steam is a trademark of Valve Corporation.
+        </p>
+      </div>
+    </footer>
+
+    <nav aria-label="Steam Deck" class="fixed inset-x-0 bottom-0 z-40 border-t border-black bg-[#23262e] md:hidden">
+      <ul class="grid grid-cols-5">
+        {
+          deck.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                aria-current={isActive(item.href) ? "page" : undefined}
+                class:list={[
+                  "flex flex-col items-center gap-0.5 py-2 text-[11px] no-underline",
+                  isActive(item.href) ? "text-steam-accent" : "text-steam-muted",
+                ]}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d={item.icon} />
+                </svg>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div id="toast-root" aria-live="polite" class="pointer-events-none fixed right-4 bottom-20 z-50 flex flex-col gap-2 md:bottom-4"></div>
+
+    <script>
+      import "../scripts/layout";
+    </script>
+  </body>
+</html>

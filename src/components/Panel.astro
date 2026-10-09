@@ -1,0 +1,30 @@
+---
+interface Props {
+  title?: string;
+  href?: string;
+  linkLabel?: string;
+  id?: string;
+  class?: string;
+}
+
+const { title, href, linkLabel = "View all", id, class: className } = Astro.props;
+const headingId = id ? `${id}-title` : undefined;
+---
+
+<section id={id} class:list={["steam-panel", className]} aria-labelledby={title ? headingId : undefined}>
+  {
+    title && (
+      <div class="flex items-baseline justify-between gap-2">
+        <h2 id={headingId} class="steam-panel-title">
+          {title}
+        </h2>
+        {href && (
+          <a href={href} class="text-xs">
+            {linkLabel}
+          </a>
+        )}
+      </div>
+    )
+  }
+  <slot />
+</section>
