@@ -98,31 +98,7 @@ const shopKey = STORAGE_KEYS.shop;
 
     <header class="hidden bg-steam-header md:block">
       <nav aria-label="Main" class="mx-auto flex h-[104px] max-w-[976px] items-center gap-8 px-4">
-        <a href="/" class="flex items-center gap-2 text-white no-underline hover:text-white" aria-label="adlee home">
-          <span aria-hidden="true" class="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#66c0f4] to-[#1a44c2] text-lg font-black">
-            A
-          </span>
-          <span class="text-xl font-light tracking-[0.2em]">ADLEE</span>
-        </a>
         <ul class="flex items-center gap-6 text-[15px] font-medium tracking-wide">
-          {
-            top.map((item) => (
-              <li>
-                <a
-                  href={item.href}
-                  aria-current={isActive(item.href, item.match) ? "page" : undefined}
-                  class:list={[
-                    "border-b-[3px] pb-1 no-underline",
-                    isActive(item.href, item.match)
-                      ? "border-steam-accent text-steam-accent"
-                      : "border-transparent text-steam-text hover:text-white",
-                  ]}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))
-          }
           <li class="relative">
             <details class="group" data-nav-dropdown>
               <summary
@@ -153,6 +129,24 @@ const shopKey = STORAGE_KEYS.shop;
               </ul>
             </details>
           </li>
+          {
+            top.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  aria-current={isActive(item.href, item.match) ? "page" : undefined}
+                  class:list={[
+                    "border-b-[3px] pb-1 no-underline",
+                    isActive(item.href, item.match)
+                      ? "border-steam-accent text-steam-accent"
+                      : "border-transparent text-steam-text hover:text-white",
+                  ]}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
         </ul>
       </nav>
     </header>
