@@ -1,0 +1,80 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Panel from "../components/Panel.astro";
+import Unavailable from "../components/Unavailable.astro";
+import EmptyState from "../components/EmptyState.astro";
+import AchievementRow from "../components/achievements/AchievementRow.astro";
+import AchievementKonami from "../components/islands/AchievementKonami";
+import { listAchievements } from "../lib/api/public";
+
+const result = await listAchievements();
+const items = result.ok ? result.data.items : [];
+const unlocked = items
+  .filter((a) => a.unlockedAt)
+  .sort((a, b) => (b.unlockedAt ?? "").localeCompare(a.unlockedAt ?? "") || a.order - b.order);
+const locked = items.filter((a) => !a.unlockedAt).sort((a, b) => a.order - b.order);
+const unlockedCount = result.ok ? result.data.unlockedCount : 0;
+const total = result.ok ? result.data.total : 0;
+const percent = total ? Math.round((unlockedCount / total) * 100) : 0;
+---
+
+<BaseLayout title="Achievements" description="Career milestones of Adlee Afif, presented as Steam achievements.">
+  <div class="space-y-4">
+    <header class="steam-panel space-y-3">
+      <h1 class="text-2xl font-light text-white">Achievements</h1>
+      {
+        result.ok ? (
+          <div class="space-y-1">
+            <p class="text-sm text-steam-text">
+              <span class="font-semibold text-white">{unlockedCount}</span> of {total} ({percent}%) achievements earned
+            </p>
+            <div
+              class="steam-progress max-w-md"
+              role="progressbar"
+              aria-label="Achievements earned"
+              aria-valuemin="0"
+              aria-valuemax={total}
+              aria-valuenow={unlockedCount}
+            >
+              <span style={`width:${percent}%`} />
+            </div>
+          </div>
+        ) : (
+          <Unavailable what="achievements" />
+        )
+      }
+    </header>
+
+    {
+      result.ok && (
+        <>
+          <Panel title={`Unlocked (${unlocked.length})`}>
+            {unlocked.length === 0 ? (
+              <EmptyState message="No achievements unlocked yet." />
+            ) : (
+              <ul class="space-y-2">
+                {unlocked.map((a) => (
+                  <AchievementRow achievement={a} />
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          {locked.length > 0 && (
+            <Panel title={`Locked (${locked.length})`}>
+              <ul class="space-y-2">
+                {locked.map((a) => (
+                  <AchievementRow achievement={a} />
+                ))}
+              </ul>
+            </Panel>
+          )}
+        </>
+      )
+    }
+
+    <Panel title="Hidden">
+      <AchievementKonami client:idle />
+    </Panel>
+  </div>
+</BaseLayout>

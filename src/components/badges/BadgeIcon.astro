@@ -1,0 +1,20 @@
+---
+interface Props {
+  glyph: string;
+  color: string;
+  size?: "md" | "lg";
+}
+
+const { glyph, color, size = "md" } = Astro.props;
+---
+
+<span
+  aria-hidden="true"
+  class:list={[
+    "grid shrink-0 place-items-center rounded-full border-2 shadow-lg shadow-black/50",
+    size === "lg" ? "h-28 w-28 text-5xl" : "h-20 w-20 text-3xl",
+  ]}
+  style={`border-color:${color};background:radial-gradient(circle at 35% 30%, ${color}66, #0e141b 75%)`}
+>
+  {glyph}
+</span>

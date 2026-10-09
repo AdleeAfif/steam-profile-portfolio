@@ -1,0 +1,26 @@
+---
+import BadgeIcon from "./BadgeIcon.astro";
+import { formatDate } from "../../lib/format";
+import type { Certificate } from "../../lib/api/types";
+
+interface Props {
+  certificate: Certificate;
+}
+
+const { certificate: c } = Astro.props;
+---
+
+<li>
+  <a
+    href={`/badges/${encodeURIComponent(c.id)}`}
+    class="group flex h-full items-center gap-4 rounded-sm bg-black/20 p-3 text-steam-text no-underline transition hover:bg-black/40"
+  >
+    <BadgeIcon glyph={c.glyph} color={c.color} />
+    <span class="min-w-0">
+      <span class="block truncate text-base text-white group-hover:text-steam-accent">{c.name}</span>
+      <span class="block truncate text-xs text-steam-muted">{c.issuer}</span>
+      <span class="block text-xs text-steam-muted">Unlocked {formatDate(c.issued)}</span>
+      <span class="mt-1 block text-xs font-semibold text-steam-accent">{c.xp.toLocaleString("en-US")} XP</span>
+    </span>
+  </a>
+</li>

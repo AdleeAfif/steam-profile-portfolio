@@ -1,0 +1,56 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Panel from "../../components/Panel.astro";
+import Unavailable from "../../components/Unavailable.astro";
+import EmptyState from "../../components/EmptyState.astro";
+import BadgeTile from "../../components/badges/BadgeTile.astro";
+import CardCollection from "../../components/islands/CardCollection";
+import CardCollectorBadge from "../../components/islands/CardCollectorBadge";
+import { listCertificates } from "../../lib/api/public";
+
+const result = await listCertificates();
+const items = result.ok ? [...result.data.items].sort((a, b) => a.order - b.order) : [];
+---
+
+<BaseLayout title="Badges" description="Certificates earned by Adlee Afif, shown as Steam badges.">
+  <div class="space-y-4">
+    <header class="steam-panel flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <h1 class="text-2xl font-light text-white">Badges</h1>
+        <p class="text-sm text-steam-muted">Certificates and qualifications</p>
+      </div>
+      {
+        result.ok && (
+          <p class="text-sm text-steam-text">
+            <span class="text-xl font-semibold text-steam-accent">{result.data.totalXp.toLocaleString("en-US")}</span> XP
+            from {items.length} badge{items.length === 1 ? "" : "s"}
+          </p>
+        )
+      }
+    </header>
+
+    <Panel title="Earned badges">
+      {
+        !result.ok ? (
+          <Unavailable what="badges" />
+        ) : (
+          <>
+            {items.length === 0 && <EmptyState message="No badges earned yet." />}
+            <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map((certificate) => (
+                <BadgeTile certificate={certificate} />
+              ))}
+              <li>
+                <CardCollectorBadge client:idle />
+              </li>
+            </ul>
+          </>
+        )
+      }
+    </Panel>
+
+    <Panel title="Trading card collection" id="cards">
+      <CardCollection client:visible />
+    </Panel>
+  </div>
+</BaseLayout>

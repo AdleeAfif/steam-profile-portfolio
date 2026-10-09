@@ -1,0 +1,71 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Panel from "../../components/Panel.astro";
+import Unavailable from "../../components/Unavailable.astro";
+import EmptyState from "../../components/EmptyState.astro";
+import GameCapsule from "../../components/games/GameCapsule.astro";
+import AchievementProgress from "../../components/games/AchievementProgress.astro";
+import { listProjects } from "../../lib/api/public";
+import { formatDate, formatHours } from "../../lib/format";
+import type { Project } from "../../lib/api/types";
+
+const result = await listProjects();
+
+const lastPlayedTime = (p: Project) => (p.lastPlayed ? new Date(p.lastPlayed).getTime() || 0 : 0);
+const games = result.ok
+  ? [...result.data.items].sort((a, b) => lastPlayedTime(b) - lastPlayedTime(a) || a.order - b.order)
+  : [];
+const totalHours = games.reduce((sum, g) => sum + g.hoursPlayed, 0);
+---
+
+<BaseLayout title="Games" description="Projects by Adlee Afif, presented as a Steam game library.">
+  <div class="space-y-4">
+    <header class="steam-panel flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <h1 class="text-2xl font-light text-white">All Games</h1>
+        <p class="text-sm text-steam-muted">Projects, sorted by recently played</p>
+      </div>
+      {
+        result.ok && (
+          <p class="text-sm text-steam-text">
+            {games.length} game{games.length === 1 ? "" : "s"} &middot; {formatHours(totalHours)} on record
+          </p>
+        )
+      }
+    </header>
+
+    <Panel>
+      {
+        !result.ok ? (
+          <Unavailable what="the game library" />
+        ) : games.length === 0 ? (
+          <EmptyState message="This library is empty." />
+        ) : (
+          <ul class="space-y-2">
+            {games.map((game) => (
+              <li>
+                <a
+                  href={`/games/${encodeURIComponent(game.id)}`}
+                  class="group flex flex-col gap-3 rounded-sm bg-black/20 p-2 text-steam-text no-underline transition hover:bg-black/40 sm:flex-row sm:items-center"
+                >
+                  <GameCapsule project={game} class="h-[69px] w-full sm:w-[184px]" />
+                  <span class="min-w-0 flex-1 space-y-1">
+                    <span class="block truncate text-lg text-white group-hover:text-steam-accent">{game.name}</span>
+                    <span class="block text-xs text-steam-muted">
+                      {formatHours(game.hoursPlayed)} on record
+                      {game.lastPlayed && <> &middot; Last played on {formatDate(game.lastPlayed)}</>}
+                    </span>
+                    <span class="block truncate text-xs text-steam-muted">{game.summary}</span>
+                  </span>
+                  <span class="sm:w-56">
+                    <AchievementProgress achievements={game.achievements} />
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </Panel>
+  </div>
+</BaseLayout>

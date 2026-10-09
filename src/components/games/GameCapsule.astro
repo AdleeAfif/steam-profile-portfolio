@@ -1,0 +1,26 @@
+---
+import type { Project } from "../../lib/api/types";
+
+interface Props {
+  project: Project;
+  class?: string;
+}
+
+const { project, class: className } = Astro.props;
+const cover = project.screenshots[0];
+---
+
+<div
+  class:list={["relative grid shrink-0 place-items-center overflow-hidden rounded-sm", className]}
+  style={`background:linear-gradient(135deg, ${project.color}, #0e141b 85%)`}
+>
+  {
+    cover ? (
+      <img src={cover} alt={`${project.name} cover`} loading="lazy" class="absolute inset-0 h-full w-full object-cover" />
+    ) : (
+      <span aria-hidden="true" class="px-2 text-center text-sm font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+        {project.name}
+      </span>
+    )
+  }
+</div>

@@ -1,0 +1,32 @@
+---
+import type { ProjectAchievement } from "../../lib/api/types";
+
+interface Props {
+  achievements: ProjectAchievement[];
+}
+
+const { achievements } = Astro.props;
+const total = achievements.length;
+const unlocked = achievements.filter((a) => a.unlocked).length;
+const percent = total ? Math.round((unlocked / total) * 100) : 0;
+---
+
+{
+  total > 0 && (
+    <span class="block space-y-1">
+      <span class="block text-xs text-steam-muted">
+        Achievements: <span class="text-steam-text">{unlocked}</span> of {total} ({percent}%)
+      </span>
+      <span
+        class="steam-progress block max-w-xs"
+        role="progressbar"
+        aria-label="Achievements unlocked"
+        aria-valuemin="0"
+        aria-valuemax={total}
+        aria-valuenow={unlocked}
+      >
+        <span style={`width:${percent}%`} />
+      </span>
+    </span>
+  )
+}

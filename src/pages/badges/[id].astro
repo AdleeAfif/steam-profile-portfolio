@@ -1,0 +1,92 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Panel from "../../components/Panel.astro";
+import Unavailable from "../../components/Unavailable.astro";
+import EmptyState from "../../components/EmptyState.astro";
+import BadgeIcon from "../../components/badges/BadgeIcon.astro";
+import { getCertificate, listSkills } from "../../lib/api/public";
+import { isNotFound } from "../../lib/api/result";
+import { rarity } from "../../lib/presentation/rarity";
+import { formatDate } from "../../lib/format";
+
+const id = Astro.params.id ?? "";
+const [result, skillsResult] = await Promise.all([getCertificate(id), listSkills()]);
+
+if (isNotFound(result)) return Astro.rewrite("/404");
+
+const certificate = result.ok ? result.data : null;
+const skillsById = new Map(skillsResult.ok ? skillsResult.data.items.map((s) => [s.id, s]) : []);
+const today = new Date().toISOString().slice(0, 10);
+const expired = !!certificate?.expires && certificate.expires < today;
+---
+
+<BaseLayout title={certificate ? `Badges :: ${certificate.name}` : "Badges"} description={certificate?.description}>
+  <div class="space-y-4">
+    <a href="/badges" class="inline-block text-sm">&laquo; Back to badges</a>
+
+    {
+      !certificate ? (
+        <Panel>
+          <Unavailable what="this badge" />
+        </Panel>
+      ) : (
+        <>
+          <section class="steam-panel flex flex-col gap-6 sm:flex-row sm:items-center">
+            <BadgeIcon glyph={certificate.glyph} color={certificate.color} size="lg" />
+            <div class="min-w-0 flex-1 space-y-1">
+              <h1 class="text-2xl font-light text-white">{certificate.name}</h1>
+              <p class="text-steam-text">{certificate.issuer}</p>
+              <p class="text-sm text-steam-muted">
+                Unlocked {formatDate(certificate.issued)}
+                {certificate.expires && (
+                  <>
+                    {" "}
+                    &middot; {expired ? "Expired" : "Expires"} {formatDate(certificate.expires)}
+                  </>
+                )}
+              </p>
+              <p class="text-lg font-semibold text-steam-accent">{certificate.xp.toLocaleString("en-US")} XP</p>
+            </div>
+            {certificate.verifyUrl && (
+              <a href={certificate.verifyUrl} target="_blank" rel="noopener noreferrer" class="btn-steam btn-green self-start sm:self-center">
+                Verify<span class="sr-only"> (opens in a new tab)</span>
+              </a>
+            )}
+          </section>
+
+          <Panel title="About this badge">
+            <p class="text-sm leading-relaxed whitespace-pre-line">{certificate.description}</p>
+          </Panel>
+
+          <Panel title="Related skills">
+            {!skillsResult.ok && certificate.skillIds.length > 0 && <Unavailable what="related skills" />}
+            {certificate.skillIds.length === 0 && <EmptyState message="No related skills listed." />}
+            {skillsResult.ok && certificate.skillIds.length > 0 && (
+              <ul class="flex flex-wrap gap-2">
+                {certificate.skillIds.map((skillId) => {
+                  const skill = skillsById.get(skillId);
+                  if (!skill) return <li class="rounded-sm bg-black/30 px-3 py-2 text-sm text-steam-muted">{skillId}</li>;
+                  const r = rarity(skill.tier);
+                  return (
+                    <li>
+                      <a
+                        href={`/inventory?item=${encodeURIComponent(skill.id)}`}
+                        class="flex flex-col rounded-sm border-b-2 bg-black/30 px-3 py-2 text-sm text-white no-underline hover:bg-black/50"
+                        style={`border-color:${r.colour}`}
+                      >
+                        {skill.name}
+                        <span class="text-xs" style={`color:${r.colour}`}>
+                          {r.name}
+                        </span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Panel>
+        </>
+      )
+    }
+  </div>
+</BaseLayout>

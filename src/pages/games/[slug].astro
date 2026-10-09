@@ -1,0 +1,154 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Panel from "../../components/Panel.astro";
+import Unavailable from "../../components/Unavailable.astro";
+import EmptyState from "../../components/EmptyState.astro";
+import AchievementProgress from "../../components/games/AchievementProgress.astro";
+import { getProject, listSkills } from "../../lib/api/public";
+import { isNotFound } from "../../lib/api/result";
+import { formatDate, formatHours, formatMonth } from "../../lib/format";
+
+const slug = Astro.params.slug ?? "";
+const [result, skillsResult] = await Promise.all([getProject(slug), listSkills()]);
+
+if (isNotFound(result)) return Astro.rewrite("/404");
+
+const game = result.ok ? result.data : null;
+const skillsById = new Map(skillsResult.ok ? skillsResult.data.items.map((s) => [s.id, s]) : []);
+const achievements = game ? [...game.achievements].sort((a, b) => Number(b.unlocked) - Number(a.unlocked)) : [];
+---
+
+<BaseLayout title={game ? game.name : "Games"} description={game?.summary}>
+  <div class="space-y-4">
+    <a href="/games" class="inline-block text-sm">&laquo; Back to library</a>
+
+    {
+      !game ? (
+        <Panel>
+          <Unavailable what="this game" />
+        </Panel>
+      ) : (
+        <>
+          <section
+            class="relative overflow-hidden rounded-sm p-6 sm:p-8"
+            style={`background:linear-gradient(120deg, ${game.color}cc, #1b2838 70%)`}
+          >
+            <h1 class="text-3xl font-light text-white drop-shadow">{game.name}</h1>
+            <p class="mt-2 max-w-2xl text-steam-text">{game.summary}</p>
+            <dl class="mt-4 grid max-w-md grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+              <dt class="text-steam-muted uppercase">Release date</dt>
+              <dd class="text-steam-text">{formatMonth(game.date)}</dd>
+              <dt class="text-steam-muted uppercase">Playtime</dt>
+              <dd class="text-steam-text">{formatHours(game.hoursPlayed)} on record</dd>
+              {game.lastPlayed && (
+                <>
+                  <dt class="text-steam-muted uppercase">Last played</dt>
+                  <dd class="text-steam-text">{formatDate(game.lastPlayed)}</dd>
+                </>
+              )}
+            </dl>
+            {(game.demoUrl || game.repo) && (
+              <div class="mt-5 flex flex-wrap gap-2">
+                {game.demoUrl && (
+                  <a href={game.demoUrl} target="_blank" rel="noopener noreferrer" class="btn-steam btn-green px-6">
+                    Play<span class="sr-only"> (opens in a new tab)</span>
+                  </a>
+                )}
+                {game.repo && (
+                  <a href={game.repo} target="_blank" rel="noopener noreferrer" class="btn-steam btn-blue">
+                    View Source<span class="sr-only"> (opens in a new tab)</span>
+                  </a>
+                )}
+              </div>
+            )}
+          </section>
+
+          {game.screenshots.length > 0 && (
+            <Panel title="Screenshots">
+              <ul class="flex snap-x gap-2 overflow-x-auto pb-2">
+                {game.screenshots.map((src, i) => (
+                  <li class="shrink-0 snap-start">
+                    <a href={src} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={src}
+                        alt={`${game.name} screenshot ${i + 1}`}
+                        loading="lazy"
+                        class="h-40 w-auto rounded-sm object-cover"
+                      />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+
+          <div class="grid gap-4 md:grid-cols-[1fr_300px]">
+            <Panel title={`About ${game.name}`}>
+              <div class="space-y-3 text-sm leading-relaxed">
+                {game.description.map((paragraph) => (
+                  <p>{paragraph}</p>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel title="Tags">
+              {game.tags.length === 0 ? (
+                <EmptyState message="No tags." />
+              ) : (
+                <ul class="flex flex-wrap gap-1.5">
+                  {game.tags.map((tag) => {
+                    const skill = skillsById.get(tag);
+                    return (
+                      <li>
+                        {skill ? (
+                          <a
+                            href={`/inventory?item=${encodeURIComponent(skill.id)}`}
+                            class="inline-block rounded-sm bg-[#67c1f5]/20 px-2 py-0.5 text-xs text-[#67c1f5] no-underline hover:bg-[#67c1f5] hover:text-white"
+                          >
+                            {skill.name}
+                          </a>
+                        ) : (
+                          <span class="inline-block rounded-sm bg-black/30 px-2 py-0.5 text-xs text-steam-muted">{tag}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Panel>
+          </div>
+
+          <Panel title="Achievements">
+            {achievements.length === 0 ? (
+              <EmptyState message="This game has no achievements." />
+            ) : (
+              <>
+                <div class="mb-3">
+                  <AchievementProgress achievements={achievements} />
+                </div>
+                <ul class="space-y-2">
+                  {achievements.map((a) => (
+                    <li class:list={["flex items-center gap-3 rounded-sm bg-black/20 p-2", !a.unlocked && "opacity-50 grayscale"]}>
+                      <span
+                        aria-hidden="true"
+                        class="grid h-10 w-10 shrink-0 place-items-center rounded-sm text-lg"
+                        style={a.unlocked ? `background:${game.color}` : "background:#3a4552"}
+                      >
+                        {a.unlocked ? "★" : "🔒"}
+                      </span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block text-sm text-white">{a.name}</span>
+                        <span class="block text-xs text-steam-muted">{a.description}</span>
+                      </span>
+                      <span class="text-xs text-steam-muted">{a.unlocked ? "Unlocked" : "Locked"}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </Panel>
+        </>
+      )
+    }
+  </div>
+</BaseLayout>
