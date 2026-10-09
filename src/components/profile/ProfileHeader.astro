@@ -1,0 +1,152 @@
+---
+import type { Certificate, ProfileView } from "../../lib/api/types";
+import { levelRingColour, progressPercent, xpRemaining } from "../../lib/presentation/level";
+import LevelUp from "../islands/LevelUp";
+import { countryName, safeHref } from "./links";
+
+interface Props {
+  profile: ProfileView;
+  featuredBadge?: Certificate;
+}
+
+const { profile, featuredBadge } = Astro.props;
+const { level } = profile;
+const ringColour = levelRingColour(level.level);
+const percent = progressPercent(level.progress);
+const remaining = xpRemaining(level.xpIntoLevel, level.xpForLevel);
+const cc = profile.countryCode?.trim().toLowerCase();
+const country = cc ? countryName(cc) : undefined;
+const avatar = safeHref(profile.avatarUrl);
+const resume = safeHref(profile.resumeUrl);
+const initial = [...profile.personaName.trim()][0]?.toUpperCase() ?? "?";
+---
+
+<section aria-label="Profile header" class="bg-black/40 p-4 sm:p-6">
+  <div class="flex flex-col gap-6 sm:flex-row">
+    <div class="shrink-0 self-center sm:self-start">
+      <div class="avatar-frame h-[166px] w-[166px] bg-gradient-to-b from-[#53a4c4] to-[#1b2838] p-[3px]">
+        {
+          avatar ? (
+            <img src={avatar} alt={`${profile.personaName} avatar`} width="160" height="160" class="h-full w-full object-cover" />
+          ) : (
+            <span role="img" aria-label={`${profile.personaName} avatar`} class="grid h-full w-full place-items-center bg-steam-bg text-6xl text-white">
+              {initial}
+            </span>
+          )
+        }
+      </div>
+    </div>
+
+    <div class="min-w-0 flex-1 space-y-2">
+      <div>
+        <h1 class="text-2xl font-light break-words text-white sm:text-3xl">{profile.personaName}</h1>
+        <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-steam-muted">
+          <span class="text-steam-text">{profile.realName}</span>
+          {
+            cc && (
+              <img src={`https://flagcdn.com/24x18/${encodeURIComponent(cc)}.png`} alt={`Flag of ${country}`} width="24" height="18" class="inline-block" />
+            )
+          }
+          {profile.location && <span>{profile.location}</span>}
+        </p>
+        {profile.headline && <p class="text-sm text-steam-text">{profile.headline}</p>}
+      </div>
+      {
+        profile.summary && profile.summary.length > 0 && (
+          <div class="space-y-2 text-sm leading-relaxed">
+            {profile.summary.map((paragraph) => (
+              <p>{paragraph}</p>
+            ))}
+          </div>
+        )
+      }
+    </div>
+
+    <aside aria-label="Level" class="w-full shrink-0 space-y-3 sm:w-[260px]">
+      <div class="flex items-center gap-3 bg-black/30 p-3">
+        <span
+          class="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 text-lg font-medium text-white"
+          style={`border-color: ${ringColour}`}
+          aria-label={`Level ${level.level}`}
+          role="img"
+        >
+          {level.level}
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="text-lg font-light text-white">
+            Level <span class="font-medium">{level.level}</span>
+          </p>
+          <div
+            class="steam-progress"
+            role="progressbar"
+            aria-label="Experience towards the next level"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={percent}
+          >
+            <span style={`width: ${percent}%`}></span>
+          </div>
+          <p class="mt-1 text-[11px] text-steam-muted">
+            {remaining.toLocaleString("en-US")} XP to Level {level.level + 1}
+          </p>
+        </div>
+      </div>
+
+      {
+        featuredBadge && (
+          <a
+            href={`/badges/${encodeURIComponent(featuredBadge.id)}`}
+            class="flex items-center gap-3 bg-black/30 p-3 text-steam-text no-underline hover:bg-black/50 hover:text-white"
+          >
+            <span
+              aria-hidden="true"
+              class="grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg font-bold text-white"
+              style={`background: ${featuredBadge.color}`}
+            >
+              {featuredBadge.glyph}
+            </span>
+            <span class="min-w-0">
+              <span class="block text-[11px] text-steam-muted uppercase">Featured badge</span>
+              <span class="block truncate text-sm text-white">{featuredBadge.name}</span>
+              <span class="block text-[11px] text-steam-muted">{featuredBadge.xp} XP</span>
+            </span>
+          </a>
+        )
+      }
+
+      <div class="flex flex-wrap gap-2">
+        <a href="#contact" class="btn-steam btn-blue flex-1" data-message-button>Message</a>
+        {
+          resume && (
+            <a href={resume} class="btn-steam btn-green flex-1" target="_blank" rel="noopener" download>
+              Download Resume
+            </a>
+          )
+        }
+      </div>
+    </aside>
+  </div>
+</section>
+
+{level.isAnniversary && <LevelUp client:idle level={level.level} colour={ringColour} />}
+
+<style>
+  .avatar-frame {
+    box-shadow: var(--avatar-frame, none);
+  }
+</style>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLAnchorElement>("[data-message-button]")) {
+    button.addEventListener("click", (event) => {
+      const section = document.getElementById("contact");
+      const field = document.getElementById("contact-name");
+      if (!section || !field) return;
+      event.preventDefault();
+      const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      section.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+      field.focus({ preventScroll: true });
+      history.replaceState(null, "", "#contact");
+    });
+  }
+</script>

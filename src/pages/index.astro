@@ -1,7 +1,208 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import Panel from "../components/Panel.astro";
+import Unavailable from "../components/Unavailable.astro";
+import EmptyState from "../components/EmptyState.astro";
+import ProfileHeader from "../components/profile/ProfileHeader.astro";
+import FavoriteGame from "../components/profile/FavoriteGame.astro";
+import ItemShowcase from "../components/profile/ItemShowcase.astro";
+import RarestAchievement from "../components/profile/RarestAchievement.astro";
+import ReviewShowcase from "../components/profile/ReviewShowcase.astro";
+import WorkshopShowcase from "../components/profile/WorkshopShowcase.astro";
+import RecentActivity from "../components/profile/RecentActivity.astro";
+import ProfileCounts from "../components/profile/ProfileCounts.astro";
+import type { CountLink } from "../components/profile/types";
+import GroupsList from "../components/profile/GroupsList.astro";
+import FriendsList from "../components/profile/FriendsList.astro";
+import StatusPanel from "../components/islands/StatusPanel";
+import Guestbook from "../components/islands/Guestbook";
+import ContactForm from "../components/islands/ContactForm";
+import {
+  getActivity,
+  getProfile,
+  listAchievements,
+  listCertificates,
+  listComments,
+  listFriends,
+  listGroups,
+  listProjects,
+  listReviews,
+  listSkills,
+  listWishlist,
+  listWorkshop,
+} from "../lib/api/public";
+import type { Skill } from "../lib/api/types";
+
+const MAX_REVIEWS = 2;
+const MAX_WORKSHOP = 4;
+
+const [profileRes, certsRes, projectsRes, skillsRes, achievementsRes, reviewsRes, workshopRes, wishlistRes, activityRes, commentsRes, friendsRes, groupsRes] =
+  await Promise.all([
+    getProfile(),
+    listCertificates(),
+    listProjects(),
+    listSkills(),
+    listAchievements(),
+    listReviews(),
+    listWorkshop(),
+    listWishlist(),
+    getActivity(),
+    listComments(),
+    listFriends(),
+    listGroups(),
+  ]);
+
+const profile = profileRes.ok ? profileRes.data : null;
+if (!profile) Astro.response.headers.set("Cache-Control", "no-store");
+
+const featuredBadge =
+  profile?.featuredBadgeId && certsRes.ok ? certsRes.data.items.find((c) => c.id === profile.featuredBadgeId) : undefined;
+
+const favoriteGame =
+  profile?.favoriteProjectSlug && projectsRes.ok
+    ? projectsRes.data.items.find((p) => p.id === profile.favoriteProjectSlug)
+    : undefined;
+
+const showcaseSkills: Skill[] =
+  profile && skillsRes.ok
+    ? (profile.showcaseSkillIds ?? []).flatMap((id) => skillsRes.data.items.filter((s) => s.id === id))
+    : [];
+
+const rarest = achievementsRes.ok
+  ? achievementsRes.data.items
+      .filter((a) => a.unlockedAt)
+      .reduce<(typeof achievementsRes.data.items)[number] | undefined>(
+        (min, a) => (!min || a.globalPercent < min.globalPercent ? a : min),
+        undefined,
+      )
+  : undefined;
+
+const count = (n: number | undefined) => (n === undefined ? null : n.toLocaleString("en-US"));
+const counts: CountLink[] = [
+  { label: "Badges", href: "/badges", value: count(certsRes.ok ? certsRes.data.items.length : undefined) },
+  { label: "Games", href: "/games", value: count(projectsRes.ok ? projectsRes.data.items.length : undefined) },
+  { label: "Inventory", href: "/inventory", value: count(skillsRes.ok ? skillsRes.data.items.length : undefined) },
+  {
+    label: "Achievements",
+    href: "/achievements",
+    value: achievementsRes.ok ? `${achievementsRes.data.unlockedCount}/${achievementsRes.data.total}` : null,
+  },
+  { label: "Wishlist", href: "/wishlist", value: count(wishlistRes.ok ? wishlistRes.data.items.length : undefined) },
+  { label: "Reviews", href: "/store", value: count(reviewsRes.ok ? reviewsRes.data.items.length : undefined) },
+];
+
+const description = profile
+  ? `${profile.realName}${profile.headline ? ` - ${profile.headline}` : ""}${profile.location ? ` from ${profile.location}` : ""}. ${profile.summary?.[0] ?? ""}`.trim()
+  : undefined;
 ---
 
-<BaseLayout title="Profile">
-  <p>Profile coming soon.</p>
+<BaseLayout title="Profile" description={description}>
+  {
+    profile ? (
+      <ProfileHeader profile={profile} featuredBadge={featuredBadge} />
+    ) : (
+      <section aria-label="Profile header" class="bg-black/40 p-6">
+        <Unavailable what="the profile" />
+      </section>
+    )
+  }
+
+  <div class="mt-4 grid gap-4 md:grid-cols-3">
+    <div class="space-y-4 md:col-span-2">
+      {
+        (!profile || profile.favoriteProjectSlug) && (
+          <Panel title="Favorite Game" href="/games" linkLabel="Library">
+            {favoriteGame ? (
+              <FavoriteGame project={favoriteGame} />
+            ) : !profile || !projectsRes.ok ? (
+              <Unavailable what="the favorite game" />
+            ) : (
+              <EmptyState message="No favorite game selected." />
+            )}
+          </Panel>
+        )
+      }
+
+      {
+        (!profile || (profile.showcaseSkillIds?.length ?? 0) > 0) && (
+          <Panel title="Item Showcase" href="/inventory" linkLabel="Inventory">
+            {!profile || !skillsRes.ok ? (
+              <Unavailable what="the item showcase" />
+            ) : showcaseSkills.length > 0 ? (
+              <ItemShowcase skills={showcaseSkills} />
+            ) : (
+              <EmptyState message="No items to show." />
+            )}
+          </Panel>
+        )
+      }
+
+      <Panel title="Rarest Achievement Showcase" href="/achievements" linkLabel="All achievements">
+        {
+          !achievementsRes.ok ? (
+            <Unavailable what="achievements" />
+          ) : rarest ? (
+            <RarestAchievement achievement={rarest} />
+          ) : (
+            <EmptyState message="No achievements unlocked yet." />
+          )
+        }
+      </Panel>
+
+      <Panel title="Review Showcase" href="/store" linkLabel="All reviews">
+        {
+          !reviewsRes.ok ? (
+            <Unavailable what="reviews" />
+          ) : reviewsRes.data.items.length > 0 ? (
+            <ReviewShowcase reviews={reviewsRes.data.items.slice(0, MAX_REVIEWS)} />
+          ) : (
+            <EmptyState message="No reviews yet." />
+          )
+        }
+      </Panel>
+
+      <Panel title="Workshop Showcase">
+        {
+          !workshopRes.ok ? (
+            <Unavailable what="the workshop" />
+          ) : workshopRes.data.items.length > 0 ? (
+            <WorkshopShowcase items={workshopRes.data.items.slice(0, MAX_WORKSHOP)} />
+          ) : (
+            <EmptyState message="No workshop items yet." />
+          )
+        }
+      </Panel>
+
+      <Panel title="Recent Activity">
+        {activityRes.ok ? <RecentActivity activity={activityRes.data} /> : <Unavailable what="recent activity" />}
+      </Panel>
+
+      <Panel title="Comments" id="comments">
+        {!commentsRes.ok && <Unavailable what="comments" />}
+        <Guestbook client:visible initial={commentsRes.ok ? commentsRes.data : null} />
+      </Panel>
+
+      <Panel title="Send a Message" id="contact">
+        <ContactForm client:visible />
+      </Panel>
+    </div>
+
+    <aside class="space-y-4" aria-label="Profile details">
+      <Panel title="Status" id="status">
+        <StatusPanel client:idle initial={profile?.status ?? null} />
+      </Panel>
+
+      <Panel>
+        <ProfileCounts links={counts} />
+      </Panel>
+
+      <Panel title="Groups" id="groups">
+        {groupsRes.ok ? <GroupsList groups={groupsRes.data.items} /> : <Unavailable what="groups" />}
+      </Panel>
+
+      <Panel title="Friends" id="friends">
+        {friendsRes.ok ? <FriendsList friends={friendsRes.data.items} /> : <Unavailable what="friends" />}
+      </Panel>
+    </aside>
+  </div>
 </BaseLayout>

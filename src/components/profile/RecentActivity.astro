@@ -1,0 +1,54 @@
+---
+import type { Activity } from "../../lib/api/types";
+import { formatHours, relativeTime } from "../../lib/format";
+import EmptyState from "../EmptyState.astro";
+import { safeHref } from "./links";
+
+interface Props {
+  activity: Activity;
+}
+
+const MAX_REPOS = 5;
+
+const { activity } = Astro.props;
+const repos = activity.repos.slice(0, MAX_REPOS);
+const hours = activity.estimatedHours.toLocaleString("en-US", { maximumFractionDigits: 1 });
+---
+
+<p class="mb-3 text-xs text-steam-muted">
+  ~{hours} hrs past 2 weeks <span>(estimated, 0.5 h per GitHub event)</span>
+</p>
+{
+  repos.length === 0 ? (
+    <EmptyState message="No public GitHub activity in the past 2 weeks." />
+  ) : (
+    <ul class="space-y-2">
+      {repos.map((repo) => {
+        const href = safeHref(repo.url);
+        return (
+          <li class="flex items-center gap-3 bg-black/20 p-2">
+            <span aria-hidden="true" class="grid h-10 w-10 shrink-0 place-items-center bg-[#2a3f5a] text-xs font-bold text-white">
+              {repo.repo.split("/").pop()?.slice(0, 2).toUpperCase()}
+            </span>
+            <div class="min-w-0 flex-1">
+              {href ? (
+                <a href={href} target="_blank" rel="noopener" class="block truncate text-sm text-white">
+                  {repo.repo}
+                </a>
+              ) : (
+                <span class="block truncate text-sm text-white">{repo.repo}</span>
+              )}
+              <span class="block text-xs text-steam-muted">
+                {repo.events} event{repo.events === 1 ? "" : "s"} · last active {relativeTime(repo.lastActivityAt)}
+              </span>
+            </div>
+            <span class="shrink-0 text-right text-xs text-steam-muted">
+              ~{formatHours(repo.estimatedHours)}
+              <span class="block">est.</span>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  )
+}

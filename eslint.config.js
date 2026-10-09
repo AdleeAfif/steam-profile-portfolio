@@ -6,7 +6,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 
 export default defineConfig(
-  { ignores: ["dist/", ".astro/", "node_modules/", "src/lib/api/schema.d.ts"] },
+  { ignores: ["dist/", ".astro/", ".runtime/", "node_modules/", "src/lib/api/schema.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...astro.configs.recommended,

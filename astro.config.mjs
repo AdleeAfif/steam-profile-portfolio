@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig, envField } from "astro/config";
+import { defineConfig, envField, passthroughImageService } from "astro/config";
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
@@ -13,6 +13,7 @@ export default defineConfig({
   integrations: [react()],
   security: { checkOrigin: false },
   session: { driver: "memory" },
+  image: { service: passthroughImageService() },
   env: {
     schema: {
       PROFILE_API_URL: secret(false),

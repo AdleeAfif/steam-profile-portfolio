@@ -1,0 +1,44 @@
+---
+import type { Project } from "../../lib/api/types";
+import { formatHours, relativeTime } from "../../lib/format";
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+const href = `/games/${encodeURIComponent(project.id)}`;
+const unlocked = project.achievements.filter((a) => a.unlocked).length;
+const total = project.achievements.length;
+const percent = total > 0 ? Math.round((unlocked / total) * 100) : 0;
+---
+
+<a href={href} class="group flex flex-col gap-3 text-steam-text no-underline hover:text-white sm:flex-row">
+  <div
+    class="flex h-[90px] w-full shrink-0 items-end p-2 sm:w-[184px]"
+    style={`background: linear-gradient(135deg, ${project.color} 0%, #171a21 100%)`}
+    aria-hidden="true"
+  >
+    <span class="truncate text-sm font-semibold text-white drop-shadow">{project.name}</span>
+  </div>
+  <div class="min-w-0 flex-1 space-y-1">
+    <p class="text-lg text-white group-hover:underline">{project.name}</p>
+    <p class="line-clamp-2 text-sm text-steam-muted">{project.summary}</p>
+    <p class="text-xs text-steam-muted">
+      <span class="text-steam-text">{formatHours(project.hoursPlayed)}</span> on record
+      {project.lastPlayed && <span> · last played {relativeTime(project.lastPlayed)}</span>}
+    </p>
+    {
+      total > 0 && (
+        <div class="flex items-center gap-2 text-xs text-steam-muted">
+          <span>
+            Achievements {unlocked}/{total}
+          </span>
+          <div class="steam-progress flex-1" aria-hidden="true">
+            <span style={`width: ${percent}%`} />
+          </div>
+        </div>
+      )
+    }
+  </div>
+</a>

@@ -1,6 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { PRIVATE_CACHE, PUBLIC_CACHE, apiErrorResponse, isAllowedOrigin } from "./lib/http";
 import { readSession } from "./lib/session";
+import { trackApiHealth } from "./lib/api/result";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const PUBLIC_ADMIN_PAGES = new Set(["/admin/login", "/admin/login/"]);
@@ -20,15 +21,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if ((isAdminPage(path) && !PUBLIC_ADMIN_PAGES.has(path)) || isAdminApi(path)) {
     if (!readSession(context.cookies)) {
       if (isAdminApi(path)) return apiErrorResponse(401, "unauthorized", "authentication required");
-      return context.redirect(`/admin/login?next=${encodeURIComponent(path + url.search)}`, 303);
+      return new Response(null, {
+        status: 303,
+        headers: {
+          Location: `/admin/login?next=${encodeURIComponent(path + url.search)}`,
+          "Cache-Control": PRIVATE_CACHE,
+        },
+      });
     }
   }
 
-  const response = await next();
+  const { value: response, degraded } = await trackApiHealth(() => next());
 
   let cacheControl: string | null = null;
   if (isPrivate(path) || response.headers.has("Set-Cookie")) {
     cacheControl = PRIVATE_CACHE;
+  } else if (degraded) {
+    cacheControl = "no-store";
   } else if (!response.headers.has("Cache-Control")) {
     const okHtml = response.status === 200 && (response.headers.get("Content-Type") ?? "").includes("text/html");
     cacheControl = okHtml ? PUBLIC_CACHE : "no-store";

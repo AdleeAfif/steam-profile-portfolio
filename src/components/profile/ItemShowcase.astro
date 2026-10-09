@@ -1,0 +1,47 @@
+---
+import type { Skill } from "../../lib/api/types";
+import { rarity } from "../../lib/presentation/rarity";
+import { simpleIconUrl } from "./links";
+
+interface Props {
+  skills: Skill[];
+}
+
+const { skills } = Astro.props;
+---
+
+<ul class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+  {
+    skills.map((skill) => {
+      const r = rarity(skill.tier);
+      return (
+        <li>
+          <a
+            href={`/inventory?item=${encodeURIComponent(skill.id)}`}
+            class="flex h-full flex-col items-center gap-2 bg-gradient-to-b from-[#2a3a4c] to-[#1d2733] p-3 text-center text-steam-text no-underline hover:from-[#34495f] hover:text-white"
+            style={`border-bottom: 3px solid ${r.colour}`}
+          >
+            {skill.icon ? (
+              <img
+                src={simpleIconUrl(skill.icon, skill.iconColor)}
+                alt={`${skill.name} logo`}
+                width="48"
+                height="48"
+                loading="lazy"
+                class="h-12 w-12 object-contain"
+              />
+            ) : (
+              <span aria-hidden="true" class="grid h-12 w-12 place-items-center text-lg font-bold text-white">
+                {skill.name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            <span class="text-sm text-white">{skill.name}</span>
+            <span class="text-[11px]" style={`color: ${r.colour}`}>
+              {r.name}
+            </span>
+          </a>
+        </li>
+      );
+    })
+  }
+</ul>

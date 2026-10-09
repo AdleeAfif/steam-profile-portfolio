@@ -17,6 +17,8 @@ export const TRADING_CARDS: readonly TradingCard[] = [
 
 export const CARD_DROP_CHANCE = 0.25;
 
+export const CARDS_CHANGED_EVENT = "spp:cards-changed";
+
 export interface CardCollection {
   cards: string[];
   craftedAt?: string;

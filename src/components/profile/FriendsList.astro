@@ -1,0 +1,70 @@
+---
+import type { Friend, FriendKind } from "../../lib/api/types";
+import EmptyState from "../EmptyState.astro";
+import { safeHref } from "./links";
+
+interface Props {
+  friends: Friend[];
+}
+
+const KINDS: Record<FriendKind, { label: string; colour: string; icon: string }> = {
+  github: {
+    label: "GitHub",
+    colour: "#c7d5e0",
+    icon: "M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2Z",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    colour: "#0a66c2",
+    icon: "M4.5 3.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4ZM3 9h3v12H3V9Zm6 0h2.9v1.7c.4-.8 1.4-1.9 3.3-1.9 3.1 0 3.8 2 3.8 4.7V21h-3v-6.6c0-1.6 0-3.5-2.2-3.5s-2.5 1.7-2.5 3.4V21H9V9Z",
+  },
+  email: {
+    label: "Email",
+    colour: "#90ba3c",
+    icon: "M3 5h18v14H3V5Zm2 2v.5l7 4.5 7-4.5V7H5Zm14 2.9-7 4.5-7-4.5V17h14V9.9Z",
+  },
+  colleague: {
+    label: "Colleague",
+    colour: "#e5b143",
+    icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z",
+  },
+};
+
+const { friends } = Astro.props;
+---
+
+{
+  friends.length === 0 ? (
+    <EmptyState message="No friends listed yet." />
+  ) : (
+    <ul class="space-y-2">
+      {friends.map((friend) => {
+        const kind = KINDS[friend.kind] ?? KINDS.colleague;
+        const href = safeHref(friend.url);
+        const external = href && !href.startsWith("mailto:");
+        return (
+          <li class="flex items-center gap-3">
+            <span class="grid h-9 w-9 shrink-0 place-items-center bg-black/40" style={`border-left: 3px solid ${kind.colour}`}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill={kind.colour}>
+                <path d={kind.icon} />
+              </svg>
+            </span>
+            <div class="min-w-0">
+              {href ? (
+                <a href={href} target={external ? "_blank" : undefined} rel={external ? "noopener" : undefined} class="block truncate text-sm text-white">
+                  {friend.name}
+                </a>
+              ) : (
+                <span class="block truncate text-sm text-white">{friend.name}</span>
+              )}
+              <span class="block truncate text-xs text-steam-muted">
+                <span class="sr-only">{kind.label}: </span>
+                {friend.statusText}
+              </span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  )
+}

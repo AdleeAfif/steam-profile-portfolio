@@ -1,0 +1,46 @@
+---
+import type { Group } from "../../lib/api/types";
+import EmptyState from "../EmptyState.astro";
+import { safeHref } from "./links";
+
+interface Props {
+  groups: Group[];
+}
+
+const { groups } = Astro.props;
+---
+
+{
+  groups.length === 0 ? (
+    <EmptyState message="No groups yet." />
+  ) : (
+    <ul class="space-y-2">
+      {groups.map((group) => {
+        const href = safeHref(group.url);
+        return (
+          <li class="flex items-center gap-3">
+            <span aria-hidden="true" class="grid h-10 w-10 shrink-0 place-items-center bg-[#2a3f5a] text-xs font-bold text-white">
+              {group.name
+                .split(/\s+/)
+                .filter((w) => /^[A-Z]/.test(w))
+                .slice(0, 3)
+                .map((w) => w[0])
+                .join("") || group.name.slice(0, 2)}
+            </span>
+            <div class="min-w-0">
+              {href ? (
+                <a href={href} target="_blank" rel="noopener" class="block text-sm text-white">
+                  {group.name}
+                </a>
+              ) : (
+                <span class="block text-sm text-white">{group.name}</span>
+              )}
+              <span class="block text-xs text-steam-muted">{group.role}</span>
+              <span class="block text-[11px] text-steam-muted">{group.period}</span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  )
+}

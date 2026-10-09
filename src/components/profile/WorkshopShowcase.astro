@@ -1,0 +1,43 @@
+---
+import type { WorkshopItem, WorkshopKind } from "../../lib/api/types";
+import { formatDate } from "../../lib/format";
+import { safeHref } from "./links";
+
+interface Props {
+  items: WorkshopItem[];
+}
+
+const KIND_LABEL: Record<WorkshopKind, string> = { "open-source": "Open Source", blog: "Blog Post", talk: "Talk" };
+const KIND_COLOUR: Record<WorkshopKind, string> = { "open-source": "#90ba3c", blog: "#66c0f4", talk: "#e5b143" };
+
+const { items } = Astro.props;
+---
+
+<ul class="grid gap-2 sm:grid-cols-2">
+  {
+    items.map((item) => {
+      const href = safeHref(item.url);
+      const body = (
+        <>
+          <span class="block text-[11px] uppercase" style={`color: ${KIND_COLOUR[item.kind] ?? "#8f98a0"}`}>
+            {KIND_LABEL[item.kind] ?? item.kind}
+          </span>
+          <span class="block text-sm text-white">{item.title}</span>
+          <span class="mt-1 line-clamp-2 block text-xs text-steam-muted">{item.description}</span>
+          <span class="mt-1 block text-[11px] text-steam-muted">{formatDate(item.date)}</span>
+        </>
+      );
+      return (
+        <li class="bg-black/20">
+          {href ? (
+            <a href={href} target="_blank" rel="noopener" class="block h-full p-3 text-steam-text no-underline hover:bg-black/30">
+              {body}
+            </a>
+          ) : (
+            <div class="p-3">{body}</div>
+          )}
+        </li>
+      );
+    })
+  }
+</ul>

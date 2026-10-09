@@ -70,6 +70,10 @@ export function adminApi(token: string) {
           body: { approved },
         }),
       ) as Promise<ApiResult<Comment>>,
+    deleteMessage: (app: string, id: string): Promise<ApiResult<unknown>> =>
+      settle(client.DELETE("/v1/admin/apps/{app}/messages/{id}", { headers, params: { path: { app, id } } })),
+    deleteComment: (app: string, id: string): Promise<ApiResult<unknown>> =>
+      settle(client.DELETE("/v1/admin/apps/{app}/comments/{id}", { headers, params: { path: { app, id } } })),
   };
 }
 
