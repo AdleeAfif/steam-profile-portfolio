@@ -1,0 +1,42 @@
+---
+import type { Skill } from "../../lib/api/types";
+import { rarity } from "../../lib/presentation/rarity";
+import { systemRequirements } from "./requirements";
+
+interface Props {
+  skills: Skill[];
+}
+
+const rows = systemRequirements(Astro.props.skills);
+const columns = [
+  { key: "minimum", title: "Minimum" },
+  { key: "recommended", title: "Recommended" },
+] as const;
+---
+
+<div class="grid gap-6 md:grid-cols-2">
+  {
+    columns.map((column) => (
+      <div>
+        <h3 class="mb-2 text-xs tracking-wide text-white uppercase">{column.title}:</h3>
+        <dl class="space-y-1.5 text-sm">
+          {rows.map((row) => (
+            <div>
+              <dt class="inline text-steam-muted">{row.category}:</dt>{" "}
+              <dd class="inline text-steam-text">
+                {row[column.key].map((skill, i) => (
+                  <>
+                    {i > 0 && ", "}
+                    <a href={`/inventory?item=${encodeURIComponent(skill.id)}`} title={`${rarity(skill.tier).proficiency} (${rarity(skill.tier).name})`}>
+                      {skill.name}
+                    </a>
+                  </>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    ))
+  }
+</div>

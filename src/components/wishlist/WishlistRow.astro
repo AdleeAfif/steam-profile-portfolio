@@ -1,0 +1,58 @@
+---
+import type { WishlistItem } from "../../lib/api/types";
+import { formatMonth } from "../../lib/format";
+import { RELEASE_LABEL, clampPercent, releaseState } from "./release";
+
+interface Props {
+  item: WishlistItem;
+  rank: number;
+}
+
+const { item, rank } = Astro.props;
+const percent = clampPercent(item.progress);
+const state = releaseState(item.target, percent);
+const kindLabel = item.kind === "certificate" ? "Certificate" : "Skill";
+const stateClass = {
+  released: "text-steam-ingame",
+  "this-month": "text-steam-accent",
+  "coming-soon": "text-steam-muted",
+  overdue: "text-[#e5a54b]",
+}[state];
+---
+
+<li class="flex gap-3 bg-black/25 p-3 hover:bg-black/40 sm:gap-4">
+  <span class="w-6 shrink-0 pt-1 text-right text-sm text-steam-muted" aria-label={`Rank ${rank}`}>{rank}</span>
+  <div
+    aria-hidden="true"
+    class="hidden h-[69px] w-[184px] shrink-0 place-items-center bg-gradient-to-br from-[#2a475e] to-[#16202d] text-3xl sm:grid"
+  >
+    {item.kind === "certificate" ? "🎓" : "🧩"}
+  </div>
+  <div class="min-w-0 flex-1 space-y-2">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="text-lg text-white">{item.name}</h2>
+      <span class="rounded-sm bg-steam-accent/15 px-2 py-0.5 text-xs tracking-wide text-steam-accent uppercase">{kindLabel}</span>
+    </div>
+    <dl class="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+      <div>
+        <dt class="inline text-steam-muted">Release date:</dt>
+        <dd class="inline text-steam-text">{formatMonth(item.target)}</dd>
+        <dd class:list={["inline pl-1", stateClass]}>({RELEASE_LABEL[state]})</dd>
+      </div>
+    </dl>
+    <div class="flex items-center gap-3">
+      <div
+        class="steam-progress flex-1"
+        role="progressbar"
+        aria-label={`${item.name} progress`}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow={percent}
+      >
+        <span style={`width: ${percent}%`}></span>
+      </div>
+      <span class="w-10 text-right text-xs text-steam-text">{percent}%</span>
+    </div>
+    {item.notes && <p class="text-sm text-steam-muted">{item.notes}</p>}
+  </div>
+</li>

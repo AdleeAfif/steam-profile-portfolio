@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import EmptyState from "../components/EmptyState.astro";
+import Unavailable from "../components/Unavailable.astro";
+import WishlistRow from "../components/wishlist/WishlistRow.astro";
+import { listWishlist } from "../lib/api/public";
+
+const result = await listWishlist();
+const items = result.ok ? result.data.items : [];
+---
+
+<BaseLayout title="Wishlist" description="Adlee Afif's learning roadmap, presented as a Steam wishlist.">
+  <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
+    <div>
+      <p class="text-xs tracking-wide text-steam-muted uppercase"><a href="/">adlee</a> &raquo; Wishlist</p>
+      <h1 class="text-2xl font-light text-white">adlee's wishlist{result.ok && ` (${items.length})`}</h1>
+    </div>
+    <p class="text-xs text-steam-muted">Skills and certificates on the learning roadmap</p>
+  </div>
+
+  {
+    !result.ok ? (
+      <Unavailable what="the wishlist" />
+    ) : items.length === 0 ? (
+      <EmptyState message="Nothing on the wishlist right now." />
+    ) : (
+      <ol class="space-y-2">
+        {items.map((item, i) => (
+          <WishlistRow item={item} rank={i + 1} />
+        ))}
+      </ol>
+    )
+  }
+</BaseLayout>

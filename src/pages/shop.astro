@@ -1,0 +1,20 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ShopIsland from "../components/islands/ShopIsland";
+import { getProfile } from "../lib/api/public";
+
+const profileResult = await getProfile();
+const profile = profileResult.ok ? profileResult.data : null;
+---
+
+<BaseLayout title="Points Shop" description="Customise the portfolio with free profile backgrounds and avatar frames.">
+  <section class="mb-4 bg-gradient-to-r from-[#1a44c2]/40 via-[#2a475e]/40 to-transparent px-6 py-6">
+    <p class="text-xs tracking-[0.3em] text-steam-accent uppercase">Points Shop</p>
+    <h1 class="text-3xl font-light text-white">Profile Items</h1>
+    <p class="mt-1 text-sm text-steam-text">
+      Everything is free. Your choice is saved in this browser and applied across the whole site.
+    </p>
+  </section>
+
+  <ShopIsland client:idle avatarUrl={profile?.avatarUrl} personaName={profile?.personaName ?? "adlee"} />
+</BaseLayout>

@@ -1,0 +1,44 @@
+---
+import type { Review } from "../../lib/api/types";
+import { formatDate } from "../../lib/format";
+
+interface Props {
+  reviews: Review[];
+}
+
+const { reviews } = Astro.props;
+---
+
+{
+  reviews.length === 0 ? (
+    <p class="text-sm text-steam-muted italic">There are no reviews for this product yet.</p>
+  ) : (
+    <ul class="space-y-3">
+      {reviews.map((review) => (
+        <li class="bg-black/25">
+          <div
+            class:list={[
+              "flex items-center gap-3 px-3 py-2",
+              review.recommended ? "bg-[#1e3a50]" : "bg-[#3a2420]",
+            ]}
+          >
+            <span aria-hidden="true" class="text-2xl">
+              {review.recommended ? "👍" : "👎"}
+            </span>
+            <div>
+              <p class="text-base text-white">{review.recommended ? "Recommended" : "Not Recommended"}</p>
+              <p class="text-xs text-steam-muted">
+                {review.author}
+                {review.authorRole && <> &middot; {review.authorRole}</>}
+              </p>
+            </div>
+          </div>
+          <div class="px-3 py-3">
+            <p class="mb-2 text-[11px] text-steam-muted uppercase">Posted: {formatDate(review.date)}</p>
+            <p class="text-sm whitespace-pre-line text-steam-text">{review.text}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}

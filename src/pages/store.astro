@@ -1,0 +1,191 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Panel from "../components/Panel.astro";
+import Unavailable from "../components/Unavailable.astro";
+import StoreReviews from "../components/store/StoreReviews.astro";
+import SystemRequirements from "../components/store/SystemRequirements.astro";
+import { REVIEW_TONE_COLOUR, reviewScore } from "../components/store/reviewScore";
+import { skillTags } from "../components/store/requirements";
+import { getProfile, listReviews, listSkills } from "../lib/api/public";
+import { formatDate } from "../lib/format";
+
+const [profileResult, skillsResult, reviewsResult] = await Promise.all([getProfile(), listSkills(), listReviews()]);
+const profile = profileResult.ok ? profileResult.data : null;
+const skills = skillsResult.ok ? skillsResult.data.items : [];
+const reviews = reviewsResult.ok ? reviewsResult.data.items : [];
+const score = reviewScore(reviews);
+const tags = skillTags(skills);
+const productName = profile?.realName ?? "Hire Me";
+---
+
+<BaseLayout title="Store" description="Hire Adlee Afif - a backend engineer, presented as a Steam store page.">
+  <p class="mb-1 text-xs text-steam-muted">
+    <a href="/store" class="text-steam-muted hover:text-white">All Software</a> &gt; Developer Tools &gt; {productName}
+  </p>
+  <h1 class="mb-4 text-3xl font-light text-white">{productName}</h1>
+
+  {
+    !profile ? (
+      <Unavailable what="this store page" />
+    ) : (
+      <div class="space-y-6">
+        <div class="grid gap-4 bg-black/20 p-3 md:grid-cols-[1fr_324px]">
+          <div class="relative grid aspect-video place-items-center overflow-hidden bg-gradient-to-br from-[#2a475e] via-[#1b2838] to-[#0e141b]">
+            {profile.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={`${profile.realName}'s avatar`}
+                width="220"
+                height="220"
+                class="h-44 w-44 rounded-sm md:h-56 md:w-56"
+                style="box-shadow: var(--avatar-frame, none)"
+              />
+            ) : (
+              <span aria-hidden="true" class="text-8xl font-black text-white/20">
+                {profile.personaName.slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            {profile.headline && (
+              <p class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 pt-8 pb-3 text-lg text-white">
+                {profile.headline}
+              </p>
+            )}
+          </div>
+
+          <div class="flex flex-col gap-3 text-sm">
+            {profile.summary?.[0] && <p class="text-steam-text">{profile.summary[0]}</p>}
+            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+              <dt class="text-steam-muted uppercase">All reviews:</dt>
+              <dd>
+                {!reviewsResult.ok ? (
+                  <span class="text-steam-muted">Unavailable</span>
+                ) : (
+                  <>
+                    <span style={`color: ${REVIEW_TONE_COLOUR[score.tone]}`}>{score.label}</span>
+                    {score.total > 0 && (
+                      <span class="text-steam-muted">
+                        {" "}
+                        ({score.total.toLocaleString("en-US")}) - {score.percent}% recommended
+                      </span>
+                    )}
+                  </>
+                )}
+              </dd>
+              <dt class="text-steam-muted uppercase">Release date:</dt>
+              <dd class="text-steam-text">{formatDate(profile.careerStart)}</dd>
+              <dt class="text-steam-muted uppercase">Developer:</dt>
+              <dd>
+                <a href="/">{profile.personaName}</a>
+              </dd>
+              <dt class="text-steam-muted uppercase">Publisher:</dt>
+              <dd>
+                <a href="/">{profile.personaName}</a>
+              </dd>
+            </dl>
+            {tags.length > 0 && (
+              <div>
+                <p class="mb-1 text-xs text-steam-muted">Popular user-defined tags for this product:</p>
+                <ul class="flex flex-wrap gap-1" aria-label="Tags">
+                  {tags.map((tag) => (
+                    <li>
+                      <a
+                        href="/inventory"
+                        class="inline-block rounded-sm bg-steam-accent/20 px-2 py-0.5 text-xs text-steam-accent no-underline hover:bg-steam-accent hover:text-white"
+                      >
+                        {tag}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4 md:flex-row md:items-start">
+          <div class="flex-1 space-y-6">
+            <section aria-labelledby="buy-title" class="relative bg-gradient-to-r from-[#3d6c8d]/40 to-[#2e5470]/20 p-4 pb-9">
+              <h2 id="buy-title" class="text-xl text-white">Hire {profile.realName}</h2>
+              <p class="text-xs text-steam-muted">Add to Cart downloads the resume.</p>
+              <div class="absolute right-4 -bottom-4 flex items-center gap-0.5 bg-black p-0.5">
+                <span class="px-3 text-sm text-steam-text">Free</span>
+                {profile.resumeUrl ? (
+                  <a href={profile.resumeUrl} download class="btn-steam btn-green">
+                    Add to Cart
+                  </a>
+                ) : (
+                  <span class="btn-steam btn-green opacity-50" aria-disabled="true">
+                    Add to Cart
+                  </span>
+                )}
+              </div>
+            </section>
+
+            <div class="flex flex-wrap gap-2">
+              <a href="/#contact" class="btn-steam btn-blue">
+                Add to Wishlist
+              </a>
+              <a href="/" class="btn-steam btn-blue">
+                View Community Profile
+              </a>
+            </div>
+
+            {profile.summary && profile.summary.length > 0 && (
+              <Panel title={`About ${profile.realName}`}>
+                <div class="space-y-3 text-sm text-steam-text">
+                  {profile.summary.map((paragraph) => (
+                    <p>{paragraph}</p>
+                  ))}
+                </div>
+              </Panel>
+            )}
+
+            <Panel title="System Requirements">
+              {!skillsResult.ok ? (
+                <Unavailable what="system requirements" />
+              ) : skills.length === 0 ? (
+                <p class="text-sm text-steam-muted italic">No requirements listed.</p>
+              ) : (
+                <SystemRequirements skills={skills} />
+              )}
+            </Panel>
+
+            <Panel title="Customer Reviews">
+              {!reviewsResult.ok ? <Unavailable what="reviews" /> : <StoreReviews reviews={reviews} />}
+            </Panel>
+          </div>
+
+          <aside class="space-y-2 md:w-[308px]" aria-label="Product details">
+            <div class="steam-panel space-y-1 text-xs">
+              <p class="text-steam-muted">
+                Title: <span class="text-steam-text">{profile.realName}</span>
+              </p>
+              {profile.headline && (
+                <p class="text-steam-muted">
+                  Genre: <span class="text-steam-text">{profile.headline}</span>
+                </p>
+              )}
+              <p class="text-steam-muted">
+                Developer: <span class="text-steam-text">{profile.personaName}</span>
+              </p>
+              {profile.location && (
+                <p class="text-steam-muted">
+                  Region: <span class="text-steam-text">{profile.location}</span>
+                </p>
+              )}
+              <p class="text-steam-muted">
+                Release date: <span class="text-steam-text">{formatDate(profile.careerStart)}</span>
+              </p>
+            </div>
+            <div class="steam-panel text-xs">
+              <p class="mb-1 text-steam-muted uppercase">Current version:</p>
+              <p class="text-steam-text">
+                Level {profile.level.level} &middot; {profile.level.level} year{profile.level.level === 1 ? "" : "s"} of experience
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    )
+  }
+</BaseLayout>

@@ -1,0 +1,26 @@
+---
+interface Props {
+  title: string;
+  items: { id: string; name: string }[];
+  href?: (id: string) => string;
+}
+
+const { title, items, href } = Astro.props;
+---
+
+<section class="steam-panel" aria-label={title}>
+  <h2 class="steam-panel-title">{title} <span class="text-steam-muted">({items.length})</span></h2>
+  {
+    items.length === 0 ? (
+      <p class="text-sm text-steam-muted italic">None this year.</p>
+    ) : (
+      <ul class="space-y-1 text-sm">
+        {items.map((item) => (
+          <li class="bg-black/20 px-3 py-2">
+            {href ? <a href={href(item.id)}>{item.name}</a> : <span class="text-steam-text">{item.name}</span>}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</section>

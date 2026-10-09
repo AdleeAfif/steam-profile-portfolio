@@ -1,0 +1,86 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Unavailable from "../components/Unavailable.astro";
+import ReplayList from "../components/replay/ReplayList.astro";
+import { pickYear } from "../components/replay/year";
+import { getReplay, getReplayYears } from "../lib/api/public";
+
+const yearsResult = await getReplayYears();
+const years = yearsResult.ok ? [...yearsResult.data.items].sort((a, b) => b - a) : [];
+const year = pickYear(Astro.url.searchParams.get("year"), years);
+const replayResult = year === null ? null : await getReplay(year);
+const replay = replayResult?.ok ? replayResult.data : null;
+const replayFailed = replayResult !== null && !replayResult.ok && replayResult.status !== 404;
+const isEmpty = replay !== null && Object.values(replay.counts).every((n) => n === 0);
+
+const tiles = replay
+  ? [
+      { label: "Projects shipped", value: replay.counts.projects, icon: "🎮" },
+      { label: "Certificates earned", value: replay.counts.certificates, icon: "🏅" },
+      { label: "Achievements unlocked", value: replay.counts.achievements, icon: "🏆" },
+      { label: "Skills picked up", value: replay.counts.skills, icon: "🧩" },
+    ]
+  : [];
+---
+
+<BaseLayout title={year ? `Steam Replay ${year}` : "Steam Replay"} description="Adlee Afif's year in review, Steam Replay style.">
+  <section class="mb-4 bg-gradient-to-br from-[#3a1c71] via-[#2a475e] to-[#16202d] px-6 py-8">
+    <p class="text-xs tracking-[0.3em] text-steam-accent uppercase">Steam Replay</p>
+    <h1 class="text-4xl font-black text-white">{year ? `adlee's ${year}` : "adlee's year in review"}</h1>
+    <p class="mt-1 text-sm text-steam-text">A look back at the projects, certificates, achievements and skills of the year.</p>
+
+    {
+      years.length > 0 && (
+        <nav aria-label="Replay year" class="mt-5">
+          <ul class="flex flex-wrap gap-2">
+            {years.map((y) => (
+              <li>
+                <a
+                  href={`/replay?year=${y}`}
+                  aria-current={y === year ? "page" : undefined}
+                  class:list={[
+                    "btn-steam px-3 py-1 text-sm",
+                    y === year ? "bg-steam-accent font-semibold text-[#171a21] hover:text-[#171a21]" : "btn-blue",
+                  ]}
+                >
+                  {y}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+  </section>
+
+  {
+    !yearsResult.ok || replayFailed ? (
+      <Unavailable what="Steam Replay" />
+    ) : year === null || replay === null || isEmpty ? (
+      <div class="steam-panel text-center">
+        <p class="text-lg text-white">No replay to show{year ? ` for ${year}` : ""} yet.</p>
+        <p class="text-sm text-steam-muted">Come back once there is some activity to look back on.</p>
+      </div>
+    ) : (
+      <div class="space-y-4">
+        <ul class="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label={`${year} in numbers`}>
+          {tiles.map((tile) => (
+            <li class="flex flex-col items-center gap-1 bg-black/30 px-3 py-6 text-center">
+              <span aria-hidden="true" class="text-2xl">
+                {tile.icon}
+              </span>
+              <span class="text-5xl font-black text-white">{tile.value}</span>
+              <span class="text-xs tracking-wide text-steam-muted uppercase">{tile.label}</span>
+            </li>
+          ))}
+        </ul>
+        <div class="grid gap-4 md:grid-cols-2">
+          <ReplayList title="Projects" items={replay.projects} href={(id) => `/games/${encodeURIComponent(id)}`} />
+          <ReplayList title="Certificates" items={replay.certificates} href={(id) => `/badges/${encodeURIComponent(id)}`} />
+          <ReplayList title="Achievements" items={replay.achievements} />
+          <ReplayList title="Skills" items={replay.skills} href={(id) => `/inventory?item=${encodeURIComponent(id)}`} />
+        </div>
+      </div>
+    )
+  }
+</BaseLayout>
