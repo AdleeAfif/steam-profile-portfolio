@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: steam-portfolio
+  namespace: steam-portfolio
+  labels:
+    app.kubernetes.io/name: steam-portfolio
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: steam-portfolio
+  ports:
+    - name: http
+      port: 4321
+      targetPort: http

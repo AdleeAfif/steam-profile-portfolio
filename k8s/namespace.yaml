@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: steam-portfolio
+  labels:
+    app.kubernetes.io/name: steam-portfolio
+    profile-api/admin-client: "true"
