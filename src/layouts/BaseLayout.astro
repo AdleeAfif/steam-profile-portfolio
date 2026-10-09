@@ -136,7 +136,7 @@ const shopKey = STORAGE_KEYS.shop;
                   href={item.href}
                   aria-current={isActive(item.href, item.match) ? "page" : undefined}
                   class:list={[
-                    "border-b-[3px] pb-1 no-underline",
+                    "block border-b-[3px] pb-1 no-underline",
                     isActive(item.href, item.match)
                       ? "border-steam-accent text-steam-accent"
                       : "border-transparent text-steam-text hover:text-white",
@@ -163,8 +163,8 @@ const shopKey = STORAGE_KEYS.shop;
       <div class="mx-auto max-w-[976px] space-y-1 px-4">
         <p>&copy; {new Date().getFullYear()} Adlee Afif. Built with Astro.</p>
         <p>
-          This is a personal portfolio styled after the Steam Community profile. It is not affiliated with, endorsed by or
-          sponsored by Valve Corporation. Steam is a trademark of Valve Corporation.
+          This portfolio is inspired by the Steam Community profile. It is not affiliated with, endorsed by or
+          sponsored by Valve Corporation.
         </p>
       </div>
     </footer>
