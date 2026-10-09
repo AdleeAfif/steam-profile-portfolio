@@ -1,0 +1,52 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Unavailable from "../components/Unavailable.astro";
+import Inventory from "../components/islands/Inventory";
+import { buildItems, buildTabs, parseState } from "../components/inventory/filter";
+import { listCompanies, listProjects, listSkills } from "../lib/api/public";
+
+const [skills, companies, projects] = await Promise.all([listSkills(), listCompanies(), listProjects()]);
+
+const data =
+  skills.ok && companies.ok
+    ? (() => {
+        const items = buildItems(
+          skills.data.items,
+          companies.data.items,
+          projects.ok ? projects.data.items : [],
+          new Date().getFullYear(),
+        );
+        const tabs = buildTabs(items, companies.data.items);
+        return { items, tabs, state: parseState(Astro.url.searchParams, tabs, items) };
+      })()
+    : null;
+
+const selected = data?.state.item ? data.items.find((i) => i.id === data.state.item) : undefined;
+const description = selected
+  ? `${selected.name} in Adlee Afif's inventory: ${selected.category}, ${selected.yearsLabel} of use.`
+  : "Skills inventory of Adlee Afif, grouped by company.";
+---
+
+<BaseLayout title={selected ? `Inventory :: ${selected.name}` : "Inventory"} description={description}>
+  <div class="mb-4 flex items-baseline gap-2">
+    <h1 class="text-2xl font-light text-white">
+      <a href="/" class="text-white no-underline hover:text-steam-accent">adlee</a>
+      <span class="text-steam-muted" aria-hidden="true">»</span>
+      <span>Inventory</span>
+    </h1>
+  </div>
+  {
+    data ? (
+      <Inventory
+        client:load
+        items={data.items}
+        tabs={data.tabs}
+        initialTab={data.state.tab}
+        initialItem={data.state.item}
+        projectsUnavailable={!projects.ok}
+      />
+    ) : (
+      <Unavailable what="the inventory" />
+    )
+  }
+</BaseLayout>
