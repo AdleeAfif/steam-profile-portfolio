@@ -4,7 +4,7 @@ Instructions for coding agents working in this repository. Read this whole file 
 
 ## 1. What this project is
 
-A personal developer portfolio for **Adlee Afif** (Backend Engineer, Malaysia) styled after a **Steam Community profile**. Every Steam profile feature maps to a piece of career data:
+A personal developer portfolio for **Adlee Afif** (Cloud Engineer, Kuala Lumpur, Malaysia) styled after a **Steam Community profile**, served at `https://adlee.my`. Every Steam profile feature maps to a piece of career data:
 
 | Steam feature    | Portfolio meaning                        |
 | ---------------- | ---------------------------------------- |

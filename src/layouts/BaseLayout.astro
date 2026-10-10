@@ -10,8 +10,10 @@ interface Props {
   wide?: boolean;
 }
 
-const { title, description = "Adlee Afif - Backend Engineer from Malaysia. A developer portfolio styled after a Steam Community profile." } =
-  Astro.props;
+const {
+  title,
+  description = "Adlee Afif - Cloud Engineer in Kuala Lumpur building Kubernetes platforms, GPU workload orchestration and observability, with Java, Go and Node.js backends. A portfolio styled after a Steam Community profile.",
+} = Astro.props;
 const path = Astro.url.pathname;
 const canonical = new URL(path, SITE_URL).toString();
 const fullTitle = title === "Profile" ? "Steam Community :: adlee" : `Steam Community :: adlee :: ${title}`;

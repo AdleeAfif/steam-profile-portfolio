@@ -154,6 +154,6 @@ The namespace carries the `profile-api/admin-client: "true"` label, which is wha
 
 In the Cloudflare dashboard:
 
-- **Tunnel**: route the portfolio hostname to `http://steam-portfolio.steam-portfolio.svc.cluster.local:4321`. The tunnel itself is defined in profile-api's `deploy/cluster`.
+- **Tunnel**: route `adlee.my` to `http://steam-portfolio.steam-portfolio.svc.cluster.local:4321`. The tunnel itself is defined in profile-api's `deploy/cluster`.
 - **Cache Rule**: cache HTML while respecting the origin's `Cache-Control`, and bypass `/admin*` and `/api/*`.
 - **Access**: protect `/admin*` and `/api/admin*` with my email only.
