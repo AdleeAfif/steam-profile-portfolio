@@ -85,6 +85,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resume PDF
+         * @description The current resume, embedded in the server binary and served inline as a PDF.
+         */
+        get: operations["getResume"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/companies": {
         parameters: {
             query?: never;
@@ -1585,6 +1605,35 @@ export interface operations {
             304: components["responses"]["NotModified"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    getResume: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description An ETag from a previous response; a match returns 304. */
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The resume */
+            200: {
+                headers: {
+                    /** @description Strong entity tag derived from the PDF contents. */
+                    ETag?: string;
+                    "Cache-Control": components["headers"]["PublicCache"];
+                    /** @description `inline; filename="nik-adlee-afif-resume.pdf"` */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            304: components["responses"]["NotModified"];
         };
     };
     listCompanies: {

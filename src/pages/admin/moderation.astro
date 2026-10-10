@@ -3,13 +3,14 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 import Notice from "../../components/admin/Notice.astro";
 import ScopeBar from "../../components/admin/ScopeBar.astro";
 import { adminApi } from "../../lib/api/admin";
+import { clientIp } from "../../lib/http";
 import { errorMessage, isUnauthorized, sessionToken, toLogin } from "../../lib/admin/guard";
 import { setFlash, takeFlash } from "../../lib/admin/flash";
 import { resolveApp, withParams } from "../../lib/admin/apps";
 import { formatDateTime } from "../../lib/admin/time";
 
 const PAGE_SIZE = 20;
-const api = adminApi(sessionToken(Astro.cookies));
+const api = adminApi(sessionToken(Astro.cookies), clientIp(Astro.request));
 const params = Astro.url.searchParams;
 const scope = await resolveApp(api, params.get("app"));
 if (isUnauthorized(scope.clients)) return toLogin(Astro);

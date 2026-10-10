@@ -24,10 +24,18 @@ export function siteOrigin(): string {
   return new URL(SITE_URL).origin;
 }
 
+export function wwwAlias(site: URL = new URL(SITE_URL)): string | null {
+  if (site.hostname.startsWith("www.") || !site.hostname.includes(".")) return null;
+  return `www.${site.hostname}`;
+}
+
 export function isAllowedOrigin(request: Request): boolean {
   const origin = request.headers.get("Origin");
   if (!origin) return false;
-  return origin === siteOrigin();
+  const site = new URL(SITE_URL);
+  if (origin === site.origin) return true;
+  const alias = wwwAlias(site);
+  return alias !== null && origin === `${site.protocol}//${alias}${site.port ? `:${site.port}` : ""}`;
 }
 
 export function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {

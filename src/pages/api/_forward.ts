@@ -1,3 +1,4 @@
+import { waitPhrase } from "../../lib/api/result";
 import type { ApiResult } from "../../lib/api/types";
 import { apiErrorResponse, jsonResponse } from "../../lib/http";
 
@@ -26,7 +27,18 @@ export function forwardResult<T>(result: ApiResult<T>, what: string): Response {
   if (result.ok) return jsonResponse(result.data, 201);
   const { status, error } = result;
   if (status === 429) {
-    return apiErrorResponse(429, "rate_limited", error?.message ?? "You're posting too fast. Please slow down.");
+    const { retryAfter } = result;
+    return jsonResponse(
+      {
+        error: {
+          code: "rate_limited",
+          message: `Whoa, slow down! You've sent a lot recently. Please try again ${waitPhrase(retryAfter)}.`,
+          retryAfter: retryAfter ?? null,
+        },
+      },
+      429,
+      retryAfter ? { "Retry-After": String(retryAfter) } : {},
+    );
   }
   if (status === 400 || status === 413 || status === 422) {
     return jsonResponse(

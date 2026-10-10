@@ -1,5 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
-import { PRIVATE_CACHE, PUBLIC_CACHE, apiErrorResponse, isAllowedOrigin } from "./lib/http";
+import { SITE_URL } from "astro:env/server";
+import { PRIVATE_CACHE, PUBLIC_CACHE, apiErrorResponse, isAllowedOrigin, wwwAlias } from "./lib/http";
 import { readSession } from "./lib/session";
 import { trackApiHealth } from "./lib/api/result";
 
@@ -13,6 +14,13 @@ const isPrivate = (path: string) => isAdminPage(path) || path.startsWith("/api/"
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, url } = context;
   const path = url.pathname;
+
+  if ((request.method === "GET" || request.method === "HEAD") && url.hostname === wwwAlias()) {
+    return new Response(null, {
+      status: 301,
+      headers: { Location: new URL(path + url.search, SITE_URL).toString(), "Cache-Control": "public, max-age=3600" },
+    });
+  }
 
   if (MUTATING.has(request.method) && !isAllowedOrigin(request)) {
     return apiErrorResponse(403, "forbidden", "cross-origin request blocked");

@@ -4,6 +4,7 @@ import FieldGrid from "../../components/admin/FieldGrid.astro";
 import ErrorBanner from "../../components/admin/ErrorBanner.astro";
 import Notice from "../../components/admin/Notice.astro";
 import { adminApi } from "../../lib/api/admin";
+import { clientIp } from "../../lib/http";
 import type { Profile } from "../../lib/api/types";
 import { errorDetails, errorMessage, isUnauthorized, sessionToken, toLogin } from "../../lib/admin/guard";
 import { setFlash, takeFlash } from "../../lib/admin/flash";
@@ -18,7 +19,7 @@ import {
   type FormState,
 } from "../../lib/admin/fields";
 
-const api = adminApi(sessionToken(Astro.cookies));
+const api = adminApi(sessionToken(Astro.cookies), clientIp(Astro.request));
 const fields = [...PROFILE_FIELDS, ...STATUS_CONFIG_FIELDS];
 
 const profile = await api.getProfile();

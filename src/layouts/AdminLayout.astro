@@ -1,25 +1,36 @@
 ---
 import "../styles/global.css";
+import { PROFILE_API_APP } from "astro:env/server";
 import Notice from "../components/admin/Notice.astro";
 import { COLLECTIONS } from "../lib/api/types";
+import { adminApi, type AdminApi } from "../lib/api/admin";
+import { clientIp } from "../lib/http";
 import { COLLECTION_META } from "../lib/admin/fields";
+import { sessionToken } from "../lib/admin/guard";
 import type { Flash } from "../lib/admin/flash";
 
 interface Props {
   title: string;
   bare?: boolean;
   flash?: Flash | null;
+  summary?: Awaited<ReturnType<AdminApi["summary"]>>;
 }
 
 const { title, bare = false, flash = null } = Astro.props;
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
 
+const summary = bare
+  ? null
+  : (Astro.props.summary ?? (await adminApi(sessionToken(Astro.cookies), clientIp(Astro.request)).summary()));
+const counts = summary?.ok ? summary.data.items.find((item) => item.app === PROFILE_API_APP) : undefined;
+const badge = (count: number | undefined, noun: string) => (count ? { count, text: `${count} ${noun}` } : null);
+
 const nav = [
   { label: "Dashboard", href: "/admin" },
   { label: "Profile", href: "/admin/profile" },
   ...COLLECTIONS.filter((c) => c !== "clients").map((c) => ({ label: COLLECTION_META[c].label, href: `/admin/${c}` })),
-  { label: "Inbox", href: "/admin/inbox" },
-  { label: "Moderation", href: "/admin/moderation" },
+  { label: "Inbox", href: "/admin/inbox", badge: badge(counts?.unreadMessages, "unread") },
+  { label: "Moderation", href: "/admin/moderation", badge: badge(counts?.pendingComments, "pending") },
   { label: "Clients", href: "/admin/clients" },
 ];
 const isCurrent = (href: string) => (href === "/admin" ? path === "/admin" : path === href || path.startsWith(`${href}/`));
@@ -62,11 +73,20 @@ const isCurrent = (href: string) => (href === "/admin" ? path === "/admin" : pat
                     href={item.href}
                     aria-current={isCurrent(item.href) ? "page" : undefined}
                     class:list={[
-                      "block rounded-sm px-3 py-1.5 text-sm no-underline",
+                      "flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm no-underline",
                       isCurrent(item.href) ? "bg-steam-accent/20 text-white" : "text-steam-text hover:bg-black/30",
                     ]}
                   >
                     {item.label}
+                    {item.badge && (
+                      <span
+                        title={item.badge.text}
+                        class="min-w-5 rounded-full bg-steam-accent px-1.5 text-center text-xs font-semibold leading-5 text-steam-header"
+                      >
+                        <span aria-hidden="true">{item.badge.count}</span>
+                        <span class="sr-only">{` (${item.badge.text})`}</span>
+                      </span>
+                    )}
                   </a>
                 </li>
               ))}

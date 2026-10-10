@@ -2,6 +2,7 @@
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import Notice from "../../components/admin/Notice.astro";
 import { adminApi } from "../../lib/api/admin";
+import { clientIp } from "../../lib/http";
 import { getStatus } from "../../lib/api/public";
 import type { StatusKind, StatusUpdate } from "../../lib/api/types";
 import { errorDetails, errorMessage, isUnauthorized, sessionToken, toLogin } from "../../lib/admin/guard";
@@ -9,7 +10,7 @@ import { setFlash, takeFlash } from "../../lib/admin/flash";
 import { formatDateTime, utcToZonedLocal, zonedLocalToUtc } from "../../lib/admin/time";
 import { STATUS_STYLES, statusExtraLine, statusStyle } from "../../lib/presentation/status";
 
-const api = adminApi(sessionToken(Astro.cookies));
+const api = adminApi(sessionToken(Astro.cookies), clientIp(Astro.request));
 const KINDS = Object.keys(STATUS_STYLES) as StatusKind[];
 
 let formError = "";
@@ -75,7 +76,7 @@ const options = [{ value: "auto", label: "Auto", colour: "#66c0f4" }].concat(
 const kindName: Record<string, string> = { auto: "schedule", available: "Available", working: "Working", sleeping: "Sleeping", holiday: "Holiday" };
 ---
 
-<AdminLayout title="Dashboard" flash={flash}>
+<AdminLayout title="Dashboard" flash={flash} summary={summary}>
   <section class="steam-panel" aria-labelledby="status-h">
     <h2 id="status-h" class="steam-panel-title">Status</h2>
     {

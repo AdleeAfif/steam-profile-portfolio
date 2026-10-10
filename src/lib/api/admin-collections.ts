@@ -1,6 +1,7 @@
 import createClient from "openapi-fetch";
 import { PROFILE_API_ADMIN_URL } from "astro:env/server";
 import type { components, paths } from "./schema";
+import { adminHeaders } from "./admin";
 import { settle, timedFetch } from "./result";
 import type { AdminEntity, ApiResult, Collection } from "./types";
 
@@ -10,8 +11,8 @@ const client = createClient<paths>({ baseUrl: PROFILE_API_ADMIN_URL, fetch: time
 
 export type EntityBody = Record<string, unknown>;
 
-export function adminCollections(token: string) {
-  const headers = { Authorization: `Bearer ${token}` };
+export function adminCollections(token: string, clientIp: string | null) {
+  const headers = adminHeaders(token, clientIp);
   return {
     create: (collection: Collection, body: EntityBody): Promise<ApiResult<AdminEntity>> =>
       settle(

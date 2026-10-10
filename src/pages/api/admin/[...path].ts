@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { forwardAdmin, isProxyablePath } from "../../../lib/api/admin";
-import { apiErrorResponse } from "../../../lib/http";
+import { apiErrorResponse, clientIp } from "../../../lib/http";
 import { clearSession, readSession } from "../../../lib/session";
 
 const MAX_BODY_CHARS = 1024 * 1024;
@@ -26,7 +26,7 @@ export const ALL: APIRoute = async ({ request, params, url, cookies }) => {
     }
   }
 
-  const response = await forwardAdmin(token, request.method, path, url.search, body);
+  const response = await forwardAdmin(token, clientIp(request), request.method, path, url.search, body);
   if (response.status === 401) clearSession(cookies);
   return response;
 };

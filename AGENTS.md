@@ -190,7 +190,7 @@ k8s/
 Dockerfile
 ```
 
-Tests are `*.test.ts` next to the code they cover, under `src/`.
+Tests are `*.test.ts` next to the code they cover, under `src/`. Under `src/pages`, prefix them with `_` (for example `_proxy.test.ts`), or Astro builds them as routes.
 
 The shared `cloudflared` deployment lives in profile-api's `deploy/cluster`, not here.
 
@@ -360,7 +360,8 @@ Decisions made while building that the spec above doesn't spell out. Keep them u
 
 **Middleware**
 
-- It rejects every `POST`, `PUT`, `PATCH` and `DELETE` whose `Origin` isn't `SITE_URL`'s origin, with 403.
+- `GET`/`HEAD` requests to `www.` plus `SITE_URL`'s host get a 301 to the same path on `SITE_URL`. Both hostnames reach the site through the tunnel.
+- It rejects every `POST`, `PUT`, `PATCH` and `DELETE` whose `Origin` isn't `SITE_URL`'s origin or its `www.` variant, with 403.
 - Without the session cookie, `/admin*` (except `/admin/login`) redirects with 303 to `/admin/login?next=...`, and `/api/admin*` returns 401 JSON.
 - Cache headers:
   - `private, no-store` for `/admin*`, `/api/*` and any response with `Set-Cookie`.
@@ -376,13 +377,17 @@ Decisions made while building that the spec above doesn't spell out. Keep them u
   - 400 and 413 pass through with `error.details`.
   - 429 passes through with the API's message.
   - Anything else becomes 503.
-- `clientIp()` reads `CF-Connecting-IP` only when `TRUST_CF_HEADERS` is true. Never forward a browser-supplied `X-Client-IP`, because profile-api trusts it for rate limits and the login lockout.
+- `clientIp()` reads `CF-Connecting-IP` only when `TRUST_CF_HEADERS` is true. Never forward a browser-supplied `X-Client-IP`, because profile-api trusts it for rate limits and the login lockout. `src/pages/api/_proxy.test.ts` covers this, plus header forwarding and error mapping for every proxy route.
+- On 429 the API client keeps `Retry-After` (`ApiResult.retryAfter`, seconds or HTTP date). The proxy passes the header on and turns it into a friendly "try again in about N minutes" message. Admin login does the same for the lockout.
+- `GET /api/comments` forwards `cursor` and `limit` (1-100, as in the contract).
 - The API's field errors are fragments such as "is required", so the forms prefix the field label.
 
 **Admin**
 
 - Pages handle their own form POSTs on the server and then redirect (POST-redirect-GET), so they need almost no client JS. One-time notices travel in a short-lived HTTP-only flash cookie.
 - `/admin/{collection}/_new` is the create page. Real ids can't start with `_`.
+- `adminApi(token, clientIp)`, `adminCollections(token, clientIp)` and `forwardAdmin(...)` send `X-Client-IP` from `clientIp(request)` on every admin call, not only on login (profile-api `docs/deploy.md` section 8). Without it, every admin login would share the pod's lockout bucket.
+- Admin results are typed only by the generated schema. Don't annotate or cast them; for example, `PUT /v1/admin/status` returns `StatusConfig`, not `Profile`.
 - On any 401 from the API, `src/lib/admin/guard.ts` clears the cookie and redirects to login. `next` is only followed when it starts with `/admin` and not `//`.
 - The status "until" field is read in the owner's time zone, not the server's.
 - `/api/admin/[...path]` refuses `login`, `logout` and malformed paths, caps bodies at 1 MiB, and clears the cookie on 401.

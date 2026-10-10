@@ -2,6 +2,7 @@
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import Notice from "../../components/admin/Notice.astro";
 import { login } from "../../lib/api/admin";
+import { waitPhrase } from "../../lib/api/result";
 import { safeNext } from "../../lib/admin/guard";
 import { clientIp, safeClientAddress } from "../../lib/http";
 import { readSession, writeSession } from "../../lib/session";
@@ -32,7 +33,10 @@ if (Astro.request.method === "POST") {
     }
     Astro.response.status = result.status === 0 ? 503 : result.status;
     if (result.status === 401) error = "Invalid username or password.";
-    else if (result.status === 429) error = result.error?.message ?? "Too many failed attempts. Try again later.";
+    else if (result.status === 429) {
+      error = `Too many failed sign-ins from your network. Try again ${waitPhrase(result.retryAfter)}.`;
+      if (result.retryAfter) Astro.response.headers.set("Retry-After", String(result.retryAfter));
+    }
     else if (result.status === 0) error = "profile-api is unreachable. Try again in a moment.";
     else error = result.error?.message ?? "Login failed.";
   }

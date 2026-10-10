@@ -63,4 +63,4 @@ export const COLLECTIONS: readonly Collection[] = [
 
 export type ApiResult<T> =
   | { ok: true; data: T; status: number }
-  | { ok: false; status: number; error: ApiError | null };
+  | { ok: false; status: number; error: ApiError | null; retryAfter?: number };

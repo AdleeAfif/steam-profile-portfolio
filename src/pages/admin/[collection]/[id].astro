@@ -5,6 +5,7 @@ import ErrorBanner from "../../../components/admin/ErrorBanner.astro";
 import Notice from "../../../components/admin/Notice.astro";
 import KeyReveal from "../../../components/admin/KeyReveal.astro";
 import { adminApi } from "../../../lib/api/admin";
+import { clientIp } from "../../../lib/http";
 import { adminCollections } from "../../../lib/api/admin-collections";
 import {
   COLLECTION_META,
@@ -30,8 +31,9 @@ if (!isCollection(collection)) {
 const meta = COLLECTION_META[collection];
 const creating = rawId === NEW;
 const token = sessionToken(Astro.cookies);
-const api = adminApi(token);
-const writes = adminCollections(token);
+const ip = clientIp(Astro.request);
+const api = adminApi(token, ip);
+const writes = adminCollections(token, ip);
 const base = `/admin/${collection}`;
 const fields = creating ? [idField(meta.idLabel), ...meta.fields] : meta.fields;
 

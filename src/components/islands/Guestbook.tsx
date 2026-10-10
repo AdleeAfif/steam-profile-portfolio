@@ -61,7 +61,11 @@ export default function Guestbook({ initial }: Props) {
 
     if (result.ok) {
       setValues(EMPTY);
-      showToast({ title: "Comment submitted", body: "It will appear after approval.", tone: "success" });
+      showToast({
+        title: "Comment awaiting moderation",
+        body: "Thanks! Your comment will appear here once it has been approved.",
+        tone: "success",
+      });
       return;
     }
     setErrors(labelDetails(result.details, { name: "Name", message: "Comment" }));
