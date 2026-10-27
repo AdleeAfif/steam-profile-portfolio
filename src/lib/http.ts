@@ -12,6 +12,17 @@ export function clientIp(request: Request, fallback?: string): string | null {
   return fallback ?? null;
 }
 
+// Astro ignores Host unless security.allowedDomains is set, so url.hostname is "localhost" in production.
+export function requestHostname(request: Request, url: URL): string {
+  const host = request.headers.get("host");
+  if (!host) return url.hostname;
+  try {
+    return new URL(`http://${host}`).hostname;
+  } catch {
+    return url.hostname;
+  }
+}
+
 export function safeClientAddress(getter: () => string): string | undefined {
   try {
     return getter();

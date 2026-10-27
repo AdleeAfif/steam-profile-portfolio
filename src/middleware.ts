@@ -1,6 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
 import { RESUME_HOST, SITE_URL } from "astro:env/server";
-import { PRIVATE_CACHE, PUBLIC_CACHE, apiErrorResponse, isAllowedOrigin, wwwAlias } from "./lib/http";
+import { PRIVATE_CACHE, PUBLIC_CACHE, apiErrorResponse, isAllowedOrigin, requestHostname, wwwAlias } from "./lib/http";
 import { readSession } from "./lib/session";
 import { trackApiHealth } from "./lib/api/result";
 import { resumeRoute } from "./lib/resume";
@@ -17,14 +17,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const path = url.pathname;
 
   const isRead = request.method === "GET" || request.method === "HEAD";
-  if (isRead && url.hostname === wwwAlias()) {
+  const publicUrl = new URL(url);
+  publicUrl.hostname = requestHostname(request, url);
+  if (isRead && publicUrl.hostname === wwwAlias()) {
     return new Response(null, {
       status: 301,
       headers: { Location: new URL(path + url.search, SITE_URL).toString(), "Cache-Control": "public, max-age=3600" },
     });
   }
 
-  const resume = isRead ? resumeRoute(url, SITE_URL, RESUME_HOST) : null;
+  const resume = isRead ? resumeRoute(publicUrl, SITE_URL, RESUME_HOST) : null;
   if (resume?.kind === "redirect") {
     return new Response(null, {
       status: 301,
