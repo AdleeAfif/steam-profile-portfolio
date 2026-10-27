@@ -1,0 +1,12 @@
+---
+interface Props {
+  what: string;
+  dark?: boolean;
+}
+
+const { what, dark = false } = Astro.props;
+---
+
+<p role="status" class:list={["text-sm italic", dark ? "text-cv-mist" : "text-cv-muted"]}>
+  Unable to load {what} right now. Please try again in a moment.
+</p>

@@ -1,0 +1,248 @@
+@import "tailwindcss" source(none);
+@source "../pages/resume.astro";
+@source "../components/resume";
+
+@theme {
+  --color-cv-paper: #f4f1ea;
+  --color-cv-ink: #14181f;
+  --color-cv-navy: #1b2838;
+  --color-cv-sky: #66c0f4;
+  --color-cv-coral: #ff7a59;
+  --color-cv-muted: #5b6472;
+  --color-cv-mist: #b9c6d2;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Outfit", "Segoe UI", Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    background: var(--color-cv-paper);
+    color: var(--color-cv-ink);
+    font-family: var(--font-body);
+    scroll-behavior: smooth;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-cv-coral);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .cv-star {
+    clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  }
+}
+
+@keyframes cv-bubble {
+  25% {
+    transform: translate(2px, -5px) scale(1.05, 0.95);
+  }
+  50% {
+    transform: translate(0, -10px) scale(0.96, 1.04);
+  }
+  75% {
+    transform: translate(-2px, -4px) scale(1.03, 0.97);
+  }
+}
+
+@keyframes cv-float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes cv-drift {
+  50% {
+    transform: translate(6px, -6px);
+  }
+}
+
+@keyframes cv-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@keyframes cv-blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes cv-twinkle {
+  50% {
+    opacity: 0.4;
+    transform: scale(0.55) rotate(45deg);
+  }
+}
+
+/* Keyframe windows are 1/18 of the cycle, matching MAX_LOGOS in resume.astro. */
+@keyframes cv-spot-tile {
+  1%,
+  5% {
+    border-color: var(--color-cv-sky);
+    background-color: rgb(102 192 244 / 0.18);
+    box-shadow: 0 0 18px rgb(102 192 244 / 0.45);
+    transform: translateY(-4px) scale(1.1);
+  }
+  0%,
+  7%,
+  100% {
+    border-color: rgb(102 192 244 / 0.25);
+    background-color: rgb(255 255 255 / 0.05);
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+@keyframes cv-spot-icon {
+  1%,
+  5% {
+    transform: translateY(-8px) scale(0.8);
+  }
+  0%,
+  7%,
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes cv-spot-name {
+  1%,
+  5% {
+    opacity: 1;
+    transform: none;
+  }
+  0%,
+  7%,
+  100% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.cv-spotlight li,
+.cv-spotlight li > * {
+  animation: 36s ease-in-out calc(var(--i) * 2s) infinite;
+}
+
+.cv-spotlight li {
+  animation-name: cv-spot-tile;
+}
+
+.cv-spotlight li > img {
+  animation-name: cv-spot-icon;
+}
+
+.cv-spotlight li > span {
+  animation-name: cv-spot-name;
+}
+
+.cv-spotlight li,
+.cv-spotlight li > * {
+  transition:
+    transform 0.25s,
+    opacity 0.25s,
+    border-color 0.25s,
+    background-color 0.25s,
+    box-shadow 0.25s;
+}
+
+.cv-spotlight:hover li,
+.cv-spotlight:hover li > * {
+  animation: none;
+}
+
+.cv-spotlight li:hover {
+  border-color: var(--color-cv-sky);
+  background-color: rgb(102 192 244 / 0.18);
+  box-shadow: 0 0 18px rgb(102 192 244 / 0.45);
+  transform: translateY(-4px) scale(1.1);
+}
+
+.cv-spotlight li:hover > img {
+  transform: translateY(-8px) scale(0.8);
+}
+
+.cv-spotlight li:hover > span {
+  opacity: 1;
+}
+
+.cv-bubble {
+  animation: cv-bubble 4.5s ease-in-out infinite;
+}
+
+.cv-bubble-alt {
+  animation: cv-bubble 5.5s ease-in-out -2s infinite;
+}
+
+.cv-float {
+  animation: cv-float 6s ease-in-out infinite;
+}
+
+.cv-float-alt {
+  animation: cv-float 5s ease-in-out -2.5s infinite;
+}
+
+.cv-drift {
+  animation: cv-drift 8s ease-in-out infinite;
+}
+
+.cv-flow {
+  animation: cv-flow 1.2s linear infinite;
+}
+
+.cv-blink > * {
+  animation: cv-blink 2.4s steps(1) infinite;
+}
+
+.cv-blink > :nth-child(3n + 2) {
+  animation-delay: -0.8s;
+}
+
+.cv-blink > :nth-child(3n) {
+  animation-delay: -1.6s;
+}
+
+.cv-twinkle > * {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cv-twinkle 3s ease-in-out infinite;
+}
+
+.cv-twinkle > :nth-child(2) {
+  animation-delay: -1s;
+}
+
+.cv-twinkle > :nth-child(3) {
+  animation-delay: -2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .cv-spotlight li,
+  .cv-spotlight li > *,
+  .cv-bubble,
+  .cv-bubble-alt,
+  .cv-float,
+  .cv-float-alt,
+  .cv-drift,
+  .cv-flow,
+  .cv-blink > *,
+  .cv-twinkle > * {
+    animation: none;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

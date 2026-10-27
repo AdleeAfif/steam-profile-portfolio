@@ -1,8 +1,9 @@
 import { defineMiddleware } from "astro:middleware";
-import { SITE_URL } from "astro:env/server";
+import { RESUME_HOST, SITE_URL } from "astro:env/server";
 import { PRIVATE_CACHE, PUBLIC_CACHE, apiErrorResponse, isAllowedOrigin, wwwAlias } from "./lib/http";
 import { readSession } from "./lib/session";
 import { trackApiHealth } from "./lib/api/result";
+import { resumeRoute } from "./lib/resume";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const PUBLIC_ADMIN_PAGES = new Set(["/admin/login", "/admin/login/"]);
@@ -15,10 +16,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { request, url } = context;
   const path = url.pathname;
 
-  if ((request.method === "GET" || request.method === "HEAD") && url.hostname === wwwAlias()) {
+  const isRead = request.method === "GET" || request.method === "HEAD";
+  if (isRead && url.hostname === wwwAlias()) {
     return new Response(null, {
       status: 301,
       headers: { Location: new URL(path + url.search, SITE_URL).toString(), "Cache-Control": "public, max-age=3600" },
+    });
+  }
+
+  const resume = isRead ? resumeRoute(url, SITE_URL, RESUME_HOST) : null;
+  if (resume?.kind === "redirect") {
+    return new Response(null, {
+      status: 301,
+      headers: { Location: resume.location, "Cache-Control": "public, max-age=3600" },
     });
   }
 
@@ -39,7 +49,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  const { value: response, degraded } = await trackApiHealth(() => next());
+  const { value: response, degraded } = await trackApiHealth(() =>
+    resume?.kind === "rewrite" ? next(resume.path) : next(),
+  );
 
   let cacheControl: string | null = null;
   if (isPrivate(path) || response.headers.has("Set-Cookie")) {

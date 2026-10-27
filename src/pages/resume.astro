@@ -1,0 +1,491 @@
+---
+import "../styles/resume.css";
+import { RESUME_HOST, SITE_URL } from "astro:env/server";
+import Analytics from "../components/Analytics.astro";
+import Unavailable from "../components/resume/Unavailable.astro";
+import { safeHref, simpleIconUrl } from "../components/profile/links";
+import { iconUrl } from "../components/inventory/filter";
+import {
+  getProfile,
+  listAchievements,
+  listCertificates,
+  listCompanies,
+  listFriends,
+  listGroups,
+  listProjects,
+  listSkills,
+} from "../lib/api/public";
+import { companyPeriod, formatMonth } from "../lib/format";
+import { byTier, focusAreas, recentMilestones, resumeCanonical, topSkillsFor } from "../lib/resume";
+
+const MAX_PROJECTS = 4;
+const CORE_TIER = 5;
+const MAX_LOGOS = 18;
+
+const [profileRes, companiesRes, skillsRes, certsRes, projectsRes, groupsRes, achievementsRes, friendsRes] =
+  await Promise.all([
+    getProfile(),
+    listCompanies(),
+    listSkills(),
+    listCertificates(),
+    listProjects(),
+    listGroups(),
+    listAchievements(),
+    listFriends(),
+  ]);
+
+const profile = profileRes.ok ? profileRes.data : null;
+if (!profile) Astro.response.headers.set("Cache-Control", "no-store");
+
+const skills = skillsRes.ok ? skillsRes.data.items : [];
+const jobs = companiesRes.ok ? companiesRes.data.items.filter((c) => c.kind === "work") : [];
+const coreSkills = skills.filter((s) => s.tier >= CORE_TIER).sort(byTier);
+const logos = [...skills]
+  .sort(byTier)
+  .filter((s): s is typeof s & { icon: string } => Boolean(s.icon))
+  .filter((s, i, all) => all.findIndex((o) => o.icon === s.icon) === i)
+  .slice(0, MAX_LOGOS);
+const otherByCategory = Object.entries(
+  skills
+    .filter((s) => s.tier < CORE_TIER)
+    .sort(byTier)
+    .reduce<Record<string, string[]>>((acc, s) => {
+      (acc[s.category] ??= []).push(s.name);
+      return acc;
+    }, {}),
+);
+const projects = projectsRes.ok ? projectsRes.data.items.slice(0, MAX_PROJECTS) : [];
+const milestones = achievementsRes.ok ? recentMilestones(achievementsRes.data.items) : [];
+const friends = friendsRes.ok ? friendsRes.data.items : [];
+const linkedin = friends.find((f) => f.kind === "linkedin");
+const github = friends.find((f) => f.kind === "github");
+const focus = focusAreas(profile?.headline);
+
+const firstName = profile ? profile.personaName.charAt(0).toUpperCase() + profile.personaName.slice(1) : "";
+const role = profile?.status.currentRole;
+const years = profile?.level.level ?? 0;
+const email = profile?.email;
+const mailto = email ? `mailto:${email}` : undefined;
+const resumeUrl = safeHref(profile?.resumeUrl);
+const portfolio = new URL(SITE_URL);
+
+const canonical = resumeCanonical(SITE_URL, RESUME_HOST);
+const title = profile ? `${profile.realName} - ${profile.currentRoleTitle ?? "Resume"}` : "Adlee Afif - Resume";
+const description = profile?.summary?.[0] ?? "Resume of Adlee Afif, Cloud Engineer in Kuala Lumpur.";
+const photo = "/resume/adlee.jpg";
+
+const nav = [
+  { label: "About", href: "#about" },
+  { label: "Experience", href: "#experience" },
+  { label: "Skills", href: "#skills" },
+  { label: "Projects", href: "#projects" },
+];
+const shortName = (name: string) => name.split(/ and | \(/)[0];
+const linkLabel = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="profile" />
+    <meta property="og:image" content={new URL(photo, canonical).toString()} />
+    <meta name="theme-color" content="#1b2838" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Outfit:wght@300;400;500;600&display=swap"
+    />
+    <Analytics />
+  </head>
+  <body class="overflow-x-hidden">
+    <header class="no-print mx-auto flex max-w-[1040px] items-center justify-between gap-4 px-5 py-5">
+      <a href="#about" class="flex items-center gap-2 text-cv-ink no-underline">
+        <span aria-hidden="true" class="cv-star size-5 bg-cv-coral"></span>
+        <span class="font-display text-xl font-extrabold">Adlee Afif</span>
+      </a>
+      <nav aria-label="Sections" class="flex items-center gap-6 text-sm">
+        <ul class="hidden items-center gap-6 sm:flex">
+          {nav.map((item) => <li><a href={item.href} class="text-cv-ink no-underline hover:text-cv-coral">{item.label}</a></li>)}
+        </ul>
+        {
+          mailto && (
+            <a href={mailto} class="rounded-full bg-cv-sky px-4 py-1.5 text-xs font-semibold text-cv-ink no-underline hover:bg-cv-ink hover:text-cv-sky">
+              Get in touch!
+            </a>
+          )
+        }
+      </nav>
+    </header>
+
+    <main>
+      <section id="about" class="mx-auto grid max-w-[1040px] items-start gap-12 px-5 pt-8 pb-12 md:grid-cols-[1.1fr_1fr] md:pt-14 md:pb-16">
+        <div class="md:pt-6">
+          {
+            profile ? (
+              <>
+                <h1 class="font-display text-6xl leading-[1.05] font-extrabold tracking-tight sm:text-7xl">
+                  Hello,
+                  <br />
+                  I'm {firstName}!
+                </h1>
+                {profile.headline && <p class="mt-5 text-sm font-semibold tracking-[0.15em] text-cv-coral uppercase">{profile.headline.split("|")[0]?.trim()}</p>}
+                <div class="mt-4 max-w-md space-y-3 text-[15px] leading-relaxed text-cv-muted">
+                  {(profile.summary ?? []).slice(0, 2).map((p) => <p>{p}</p>)}
+                </div>
+                <div class="mt-8 flex flex-wrap gap-3">
+                  {linkedin && (
+                    <a
+                      href={safeHref(linkedin.url)}
+                      rel="noopener"
+                      target="_blank"
+                      class="inline-flex items-center gap-3 rounded-full bg-cv-coral px-6 py-3 text-sm font-semibold text-cv-ink no-underline hover:bg-cv-ink hover:text-cv-coral"
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4v11H3zM9.5 9.75h3.8v1.5h.06c.53-1 1.83-2.06 3.77-2.06 4.03 0 4.77 2.65 4.77 6.1v5.46h-4v-4.84c0-1.16-.02-2.64-1.6-2.64-1.62 0-1.86 1.26-1.86 2.56v4.92h-4z" /></svg>
+                      {linkLabel(linkedin.url)}
+                    </a>
+                  )}
+                  {resumeUrl && (
+                    <a
+                      href={resumeUrl}
+                      rel="noopener"
+                      target="_blank"
+                      class="no-print inline-flex items-center gap-2 rounded-full border-2 border-cv-ink px-6 py-3 text-sm font-semibold text-cv-ink no-underline hover:bg-cv-ink hover:text-cv-paper"
+                    >
+                      Download résumé (PDF)
+                    </a>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 class="font-display text-6xl font-extrabold">Hello!</h1>
+                <div class="mt-6"><Unavailable what="the profile" /></div>
+              </>
+            )
+          }
+        </div>
+
+        <div class="relative mx-auto w-full max-w-[360px] md:mr-0 md:self-end">
+          <div class="relative bg-cv-navy px-8 pt-10">
+            <div class="relative -mt-20">
+              <span aria-hidden="true" class="absolute inset-0 translate-x-3 -translate-y-3 rounded-t-full border-2 border-cv-sky"></span>
+              <div class="relative aspect-[4/5] overflow-hidden rounded-t-full">
+                <img
+                  src={photo}
+                  alt={profile ? `Portrait of ${profile.realName}` : "Portrait"}
+                  width="655"
+                  height="1024"
+                  class="size-full origin-[50%_36%] scale-[1.7] object-cover grayscale"
+                />
+              </div>
+            </div>
+            {
+              profile && years > 0 && (
+                <span class="cv-bubble absolute top-28 -left-6 rounded-full bg-cv-sky px-5 py-2 text-xs font-semibold text-cv-ink shadow-lg sm:-left-12">
+                  {years}+ years in tech
+                </span>
+              )
+            }
+            {
+              role?.title && (
+                <span class="cv-bubble-alt absolute right-[-0.75rem] bottom-8 max-w-[85%] rounded-full bg-cv-sky px-5 py-2 text-center text-xs font-semibold text-cv-ink shadow-lg sm:right-[-2.5rem]">
+                  {role.title}
+                  {role.company && ` @ ${role.company}`}
+                </span>
+              )
+            }
+          </div>
+
+          <address class="relative z-10 bg-cv-ink px-8 py-6 text-sm text-cv-paper not-italic md:-mb-40">
+            <h2 class="font-display text-3xl font-extrabold">Contact</h2>
+            <ul class="mt-3 space-y-2">
+              {
+                profile?.location && (
+                  <li class="flex items-center gap-3">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4 shrink-0 fill-cv-sky"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" /></svg>
+                    {profile.location}
+                  </li>
+                )
+              }
+              {
+                email && (
+                  <li class="flex items-center gap-3">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4 shrink-0 fill-cv-sky"><path d="M3 5h18v14H3zm2 2v.5l7 4.5 7-4.5V7z" /></svg>
+                    <a href={mailto} class="text-cv-paper hover:text-cv-sky">{email}</a>
+                  </li>
+                )
+              }
+              {
+                github && (
+                  <li class="flex items-center gap-3">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4 shrink-0 fill-cv-sky"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z" /></svg>
+                    <a href={safeHref(github.url)} rel="noopener" target="_blank" class="text-cv-paper hover:text-cv-sky">{linkLabel(github.url)}</a>
+                  </li>
+                )
+              }
+              <li class="flex items-center gap-3">
+                <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4 shrink-0 fill-cv-sky"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 6h-3a15 15 0 0 0-1.3-3.9A8 8 0 0 1 18.9 8ZM12 4a13 13 0 0 1 1.9 4h-3.8A13 13 0 0 1 12 4ZM4.3 14a8 8 0 0 1 0-4h3.4a16 16 0 0 0 0 4Zm.8 2h3a15 15 0 0 0 1.3 3.9A8 8 0 0 1 5.1 16Zm3-8h-3a8 8 0 0 1 4.3-3.9A15 15 0 0 0 8.1 8ZM12 20a13 13 0 0 1-1.9-4h3.8A13 13 0 0 1 12 20Zm2.3-6H9.7a14 14 0 0 1 0-4h4.6a14 14 0 0 1 0 4Zm.3 5.9a15 15 0 0 0 1.3-3.9h3a8 8 0 0 1-4.3 3.9Zm1.7-5.9a16 16 0 0 0 0-4h3.4a8 8 0 0 1 0 4Z" /></svg>
+                <a href={portfolio.toString()} class="text-cv-paper hover:text-cv-sky">{portfolio.host} <span class="text-cv-mist">(full portfolio)</span></a>
+              </li>
+            </ul>
+          </address>
+        </div>
+      </section>
+
+      <div class="bg-cv-navy text-cv-paper md:mt-0">
+        <div class="mx-auto grid max-w-[1040px] items-start gap-12 px-5 pt-14 md:grid-cols-[1.1fr_1fr]">
+          <div class="flex flex-col gap-12 md:self-stretch">
+            <section aria-labelledby="education-title">
+              <h2 id="education-title" class="font-display text-4xl font-extrabold text-cv-sky">Education</h2>
+              {
+                groupsRes.ok ? (
+                  <ol class="mt-6 space-y-6 border-l border-cv-mist/40 pl-6">
+                    {groupsRes.data.items.map((g) => (
+                      <li class="relative grid gap-x-6 gap-y-1 sm:grid-cols-[7.5rem_1fr]">
+                        <span aria-hidden="true" class="cv-star absolute top-1 -left-[2.05rem] size-4 bg-cv-coral" />
+                        <span class="font-display text-lg font-semibold whitespace-nowrap">{g.period}</span>
+                        <div>
+                          <p class="font-semibold">{g.name}</p>
+                          <p class="text-sm text-cv-mist">{g.role}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div class="mt-6"><Unavailable what="education" dark /></div>
+                )
+              }
+            </section>
+
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 360 260"
+              preserveAspectRatio="xMidYMid meet"
+              class="hidden max-h-72 min-h-0 w-full flex-1 md:block"
+              fill="none"
+            >
+              <g class="stroke-cv-sky/55" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <g class="cv-float">
+                  <path d="M110 120H250A30 30 0 0 0 250 60A45 45 0 0 0 165 45A35 35 0 0 0 110 75A22.5 22.5 0 0 0 110 120Z" />
+                  <path d="M118 112H242A22 22 0 0 0 242 68" opacity="0.5" />
+                </g>
+                <path class="cv-flow" d="M140 120L90 175M180 120V175M220 120L270 175" stroke-dasharray="4 6" />
+                <rect x="66" y="175" width="48" height="60" rx="4" />
+                <rect x="156" y="175" width="48" height="60" rx="4" />
+                <rect x="246" y="175" width="48" height="60" rx="4" />
+                <path d="M66 195H114M66 215H114M156 195H204M156 215H204M246 195H294M246 215H294" />
+                <circle class="cv-drift" cx="33" cy="140" r="14" />
+                <circle class="cv-float-alt" cx="330" cy="95" r="8" />
+              </g>
+              <g class="cv-blink fill-cv-sky/70">
+                <circle cx="76" cy="185" r="2" /><circle cx="84" cy="185" r="2" />
+                <circle cx="166" cy="185" r="2" /><circle cx="174" cy="185" r="2" />
+                <circle cx="256" cy="185" r="2" /><circle cx="264" cy="185" r="2" />
+                <circle cx="76" cy="205" r="2" /><circle cx="166" cy="205" r="2" /><circle cx="256" cy="205" r="2" />
+              </g>
+              <g class="cv-twinkle fill-cv-coral">
+                <path d="M60 30Q60 44 74 44Q60 44 60 58Q60 44 46 44Q60 44 60 30Z" />
+                <path d="M312 18Q312 28 322 28Q312 28 312 38Q312 28 302 28Q312 28 312 18Z" />
+                <path d="M318 150Q318 158 326 158Q318 158 318 166Q318 158 310 158Q318 158 318 150Z" />
+              </g>
+            </svg>
+
+            <section
+              id="experience"
+              aria-labelledby="experience-title"
+              class="relative z-10 -mx-5 bg-cv-sky px-5 py-10 text-cv-ink sm:mx-0 sm:px-10 md:mt-auto md:-mb-32 md:-ml-10"
+            >
+              <h2 id="experience-title" class="font-display text-4xl font-extrabold">Experience</h2>
+              {
+                companiesRes.ok ? (
+                  <ol class="mt-6 space-y-6 border-l border-cv-ink/30 pl-6">
+                    {jobs.map((job) => {
+                      const top = topSkillsFor(job.id, skills);
+                      return (
+                        <li class="relative grid gap-x-6 gap-y-1 sm:grid-cols-[4.5rem_1fr]">
+                          <span aria-hidden="true" class="cv-star absolute top-1 -left-[2.05rem] size-4 bg-cv-paper" />
+                          <span class="font-display text-xl font-extrabold">{job.start.slice(0, 4)}</span>
+                          <div>
+                            <p class="font-semibold">{job.role}</p>
+                            <p class="text-sm">{job.name}</p>
+                            <p class="text-xs text-cv-ink/70">{companyPeriod(job.start, job.end)}</p>
+                            {top.length > 0 && <p class="mt-1 text-xs font-medium">{top.map((s) => s.name).join(" · ")}</p>}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                ) : (
+                  <div class="mt-6"><Unavailable what="experience" /></div>
+                )
+              }
+              {
+                focus.length > 0 && (
+                  <ul class="mt-8 flex flex-wrap gap-2" aria-label="Focus areas">
+                    {focus.map((f) => (
+                      <li class="rounded-full bg-cv-ink px-4 py-1.5 text-xs text-cv-paper">#{f}</li>
+                    ))}
+                  </ul>
+                )
+              }
+            </section>
+          </div>
+
+          <section id="skills" aria-labelledby="skills-title" class="relative pb-14 md:pt-24">
+            {
+              logos.length > 0 && (
+                <div class="cv-spotlight mb-10 hidden md:block">
+                  <ul aria-label="Tools I've used" class="grid grid-cols-6 gap-3">
+                    {logos.map((s, i) => (
+                      <li
+                        title={s.name}
+                        style={`--i: ${i}`}
+                        class="relative grid aspect-square place-items-center rounded-lg border border-cv-sky/25 bg-white/5 p-2.5"
+                      >
+                        <img src={iconUrl(s.icon, s.iconColor)} alt={s.name} width="28" height="28" loading="lazy" class="size-7 overflow-hidden text-[0px]" />
+                        <span
+                          aria-hidden="true"
+                          class="absolute inset-x-1 bottom-1.5 line-clamp-2 text-center text-[9px] leading-tight font-semibold text-cv-paper opacity-0"
+                        >
+                          {shortName(s.name)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }
+            <h2 id="skills-title" class="relative font-display text-4xl font-extrabold text-cv-sky">Technical skills</h2>
+            {
+              skillsRes.ok ? (
+                <>
+                  <h3 class="relative mt-6 font-display text-lg font-semibold">Core stack</h3>
+                  <ul class="relative mt-3 flex flex-wrap gap-2">
+                    {coreSkills.map((s) => (
+                      <li class="flex items-center gap-2 rounded-md bg-cv-paper px-2.5 py-1.5 text-xs font-medium text-cv-ink">
+                        {s.icon && (
+                          <img src={simpleIconUrl(s.icon, s.iconColor)} alt="" width="16" height="16" loading="lazy" class="size-4" />
+                        )}
+                        {s.name}
+                      </li>
+                    ))}
+                  </ul>
+                  <h3 class="relative mt-8 font-display text-lg font-semibold">Also worked with</h3>
+                  <dl class="relative mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                    {otherByCategory.map(([category, list]) => (
+                      <div>
+                        <dt class="text-xs font-semibold tracking-wider text-cv-sky uppercase">{category}</dt>
+                        <dd class="text-cv-mist">{list.join(", ")}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </>
+              ) : (
+                <div class="mt-6"><Unavailable what="skills" dark /></div>
+              )
+            }
+          </section>
+        </div>
+      </div>
+
+      <div class="mx-auto grid max-w-[1040px] gap-12 px-5 py-14 md:grid-cols-[1.1fr_1fr]">
+        <section id="projects" aria-labelledby="projects-title" class="md:pt-36">
+          <h2 id="projects-title" class="font-display text-4xl font-extrabold">Projects</h2>
+          {
+            projectsRes.ok ? (
+              <ol class="mt-6 space-y-6 border-l border-cv-ink/20 pl-6">
+                {projects.map((p) => {
+                  const href = safeHref(p.demoUrl) ?? safeHref(p.repo) ?? new URL(`/games/${p.id}`, SITE_URL).toString();
+                  return (
+                    <li class="relative grid gap-x-6 gap-y-1 sm:grid-cols-[4.5rem_1fr]">
+                      <span aria-hidden="true" class="cv-star absolute top-1 -left-[2.05rem] size-4 bg-cv-coral" />
+                      <span class="font-display text-xl font-extrabold">{p.date.slice(0, 4)}</span>
+                      <div>
+                        <a href={href} class="font-semibold text-cv-ink underline decoration-cv-sky decoration-2 underline-offset-4 hover:text-cv-coral">
+                          {p.name}
+                        </a>
+                        <p class="mt-1 text-sm text-cv-muted">{p.summary}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <div class="mt-6"><Unavailable what="projects" /></div>
+            )
+          }
+          <a href={new URL("/games", SITE_URL).toString()} class="mt-6 inline-block text-sm font-semibold text-cv-ink hover:text-cv-coral">
+            See all projects &rarr;
+          </a>
+        </section>
+
+        <div class="space-y-14">
+          <section aria-labelledby="certs-title">
+            <h2 id="certs-title" class="font-display text-4xl font-extrabold">Certifications</h2>
+            {
+              certsRes.ok ? (
+                <ul class="mt-6 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                  {certsRes.data.items.map((c) => (
+                    <li>
+                      <p class="font-display font-semibold">
+                        {safeHref(c.verifyUrl) ? (
+                          <a href={safeHref(c.verifyUrl)} rel="noopener" target="_blank" class="text-cv-ink hover:text-cv-coral">
+                            {c.name}
+                          </a>
+                        ) : (
+                          c.name
+                        )}
+                      </p>
+                      <p class="text-sm text-cv-muted">
+                        {c.issuer} · {c.issued.slice(0, 4)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div class="mt-6"><Unavailable what="certifications" /></div>
+              )
+            }
+          </section>
+
+          <section aria-labelledby="milestones-title">
+            <h2 id="milestones-title" class="font-display text-4xl font-extrabold">Milestones</h2>
+            {
+              achievementsRes.ok ? (
+                <ul class="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
+                  {milestones.map((m) => (
+                    <li class="text-center" title={m.description}>
+                      <span aria-hidden="true" class="mx-auto grid size-14 place-items-center rounded-full bg-cv-sky text-2xl">{m.glyph}</span>
+                      <p class="mt-2 text-sm leading-tight font-medium">{m.name}</p>
+                      <p class="text-xs text-cv-muted">{formatMonth(m.unlockedAt)}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div class="mt-6"><Unavailable what="milestones" /></div>
+              )
+            }
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-cv-ink py-6 text-center text-xs text-cv-mist">
+      <p>
+        &copy; {new Date().getFullYear()} Adlee Afif · Interactive portfolio at
+        <a href={portfolio.toString()} class="text-cv-sky hover:text-cv-paper">{portfolio.host}</a>
+      </p>
+    </footer>
+  </body>
+</html>
