@@ -80,96 +80,34 @@
   }
 }
 
-/* Keyframe windows are 1/18 of the cycle, matching MAX_LOGOS in resume.astro. */
-@keyframes cv-spot-tile {
-  1%,
-  5% {
-    border-color: var(--color-cv-sky);
-    background-color: rgb(102 192 244 / 0.18);
-    box-shadow: 0 0 18px rgb(102 192 244 / 0.45);
-    transform: translateY(-4px) scale(1.1);
-  }
-  0%,
-  7%,
-  100% {
-    border-color: rgb(102 192 244 / 0.25);
-    background-color: rgb(255 255 255 / 0.05);
-    box-shadow: none;
-    transform: none;
-  }
-}
-
-@keyframes cv-spot-icon {
-  1%,
-  5% {
-    transform: translateY(-8px) scale(0.8);
-  }
-  0%,
-  7%,
-  100% {
-    transform: none;
-  }
-}
-
-@keyframes cv-spot-name {
-  1%,
-  5% {
-    opacity: 1;
-    transform: none;
-  }
-  0%,
-  7%,
-  100% {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-}
-
-.cv-spotlight li,
-.cv-spotlight li > * {
-  animation: 36s ease-in-out calc(var(--i) * 2s) infinite;
-}
-
-.cv-spotlight li {
-  animation-name: cv-spot-tile;
-}
-
-.cv-spotlight li > img {
-  animation-name: cv-spot-icon;
-}
-
-.cv-spotlight li > span {
-  animation-name: cv-spot-name;
-}
-
 .cv-spotlight li,
 .cv-spotlight li > * {
   transition:
-    transform 0.25s,
-    opacity 0.25s,
-    border-color 0.25s,
-    background-color 0.25s,
-    box-shadow 0.25s;
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease,
+    border-color 0.4s ease,
+    background-color 0.4s ease,
+    box-shadow 0.4s ease;
 }
 
-.cv-spotlight:hover li,
-.cv-spotlight:hover li > * {
-  animation: none;
+.cv-spotlight li > span {
+  transform: translateY(4px);
 }
 
-.cv-spotlight li:hover {
+.cv-spotlight li[data-active] {
   border-color: var(--color-cv-sky);
   background-color: rgb(102 192 244 / 0.18);
   box-shadow: 0 0 18px rgb(102 192 244 / 0.45);
   transform: translateY(-4px) scale(1.1);
 }
 
-.cv-spotlight li:hover > img {
+.cv-spotlight li[data-active] > img {
   transform: translateY(-8px) scale(0.8);
 }
 
-.cv-spotlight li:hover > span {
+.cv-spotlight li[data-active] > span {
   opacity: 1;
+  transform: none;
 }
 
 .cv-bubble {
@@ -227,8 +165,6 @@
     scroll-behavior: auto;
   }
 
-  .cv-spotlight li,
-  .cv-spotlight li > *,
   .cv-bubble,
   .cv-bubble-alt,
   .cv-float,
