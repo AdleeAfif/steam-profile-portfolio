@@ -23,6 +23,7 @@ export default defineConfig({
       SITE_URL: secret(false),
       TRUST_CF_HEADERS: envField.boolean({ context: "server", access: "secret", default: false }),
       PUBLIC_GA_ID: secret(true),
+      RESUME_HOST: secret(true),
     },
   },
   vite: {

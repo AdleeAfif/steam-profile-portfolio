@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
-import { PUBLIC_GA_ID, SITE_URL } from "astro:env/server";
+import { SITE_URL } from "astro:env/server";
+import Analytics from "../components/Analytics.astro";
 import { BACKGROUNDS, FRAMES } from "../lib/shop";
 import { STORAGE_KEYS } from "../lib/client/storage";
 
@@ -77,23 +78,7 @@ const shopKey = STORAGE_KEYS.shop;
         /* storage disabled */
       }
     </script>
-    {
-      PUBLIC_GA_ID && (
-        <>
-          <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${PUBLIC_GA_ID}`} />
-          <script is:inline define:vars={{ gaId: PUBLIC_GA_ID }}>
-            window.dataLayer = window.dataLayer || [];
-            function gtag() {
-              // gtag.js only accepts the arguments object, not an array
-              // eslint-disable-next-line prefer-rest-params
-              window.dataLayer.push(arguments);
-            }
-            gtag("js", new Date());
-            gtag("config", gaId);
-          </script>
-        </>
-      )
-    }
+    <Analytics />
     <slot name="head" />
   </head>
   <body class="flex min-h-screen flex-col pb-16 md:pb-0">

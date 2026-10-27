@@ -110,6 +110,7 @@ Definition of done for any change:
 | `SITE_URL`              | yes      | Public URL for canonical links and the CSRF `Origin` check                                  |
 | `TRUST_CF_HEADERS`      | no       | `true` in production. Read the client IP from `CF-Connecting-IP`                            |
 | `PUBLIC_GA_ID`          | no       | Google Analytics 4. Skip GA when unset                                                      |
+| `RESUME_HOST`           | no       | Hostname serving the one-page resume at `/`, e.g. `recruit.adlee.my`. Unset: it's at `/resume`   |
 
 In k3s these come from secret `steam-portfolio-env`. Commit only `k8s/secret.example.yaml`.
 
@@ -131,6 +132,7 @@ src/
     replay.astro
     store.astro                 # "Hire Me"
     shop.astro                  # Points Shop
+    resume.astro                # one-page recruiter resume (own styles/resume.css), served on RESUME_HOST
     404.astro
     admin/
       login.astro, logout.ts
@@ -369,6 +371,12 @@ Decisions made while building that the spec above doesn't spell out. Keep them u
   - The public value for other 200 HTML responses that set no header of their own.
   - `no-store` for everything else.
 - Redirect responses have immutable headers, so it builds a new `Response` when it needs to change them.
+- When `RESUME_HOST` is set (`src/lib/resume.ts`), `GET /` on that host is rewritten to `/resume`, `/_astro/`, `/favicon.*`, `/resume/*` and `/api/health` pass through, and every other path gets a 301 to the same path on `SITE_URL`. `/resume` on the main host gets a 301 to the resume host. Locally, `RESUME_HOST=recruit.localhost` works at `http://recruit.localhost:4321`.
+
+**Resume page**
+
+- Not Steam-themed and doesn't use `BaseLayout`: warm paper, navy (`#1b2838`), sky (`#66c0f4`) and coral, with Fraunces and Outfit from Google Fonts. `resume.css` is a separate Tailwind entry with `source(none)`, so neither theme leaks into the other.
+- Everything except the photo (`public/resume/adlee.jpg`) comes from profile-api. Experience is `companies` of kind `work`, with each job's top skills by tier. Education is `groups`. Focus-area tags come from the part of `headline` after the last `|`.
 
 **Forms and forwarding**
 

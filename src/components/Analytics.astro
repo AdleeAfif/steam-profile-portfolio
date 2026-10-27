@@ -1,0 +1,21 @@
+---
+import { PUBLIC_GA_ID } from "astro:env/server";
+---
+
+{
+  PUBLIC_GA_ID && (
+    <>
+      <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${PUBLIC_GA_ID}`} />
+      <script is:inline define:vars={{ gaId: PUBLIC_GA_ID }}>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+          // gtag.js only accepts the arguments object, not an array
+          // eslint-disable-next-line prefer-rest-params
+          window.dataLayer.push(arguments);
+        }
+        gtag("js", new Date());
+        gtag("config", gaId);
+      </script>
+    </>
+  )
+}
