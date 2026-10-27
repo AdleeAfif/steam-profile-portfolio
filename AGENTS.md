@@ -371,6 +371,7 @@ Decisions made while building that the spec above doesn't spell out. Keep them u
   - The public value for other 200 HTML responses that set no header of their own.
   - `no-store` for everything else.
 - Redirect responses have immutable headers, so it builds a new `Response` when it needs to change them.
+- Astro ignores the `Host` header unless `security.allowedDomains` is set, so in production `url.hostname` is always `localhost`. Hostname checks (the `www.` redirect and `RESUME_HOST`) use `requestHostname()` from `src/lib/http.ts`, which reads `Host`. Redirect targets are always built from `SITE_URL`.
 - When `RESUME_HOST` is set (`src/lib/resume.ts`), `GET /` on that host is rewritten to `/resume`, `/_astro/`, `/favicon.*`, `/resume/*` and `/api/health` pass through, and every other path gets a 301 to the same path on `SITE_URL`. `/resume` on the main host gets a 301 to the resume host. Locally, `RESUME_HOST=recruit.localhost` works at `http://recruit.localhost:4321`.
 
 **Resume page**
