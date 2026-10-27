@@ -308,7 +308,7 @@ Pages:
     - `envFrom` secret `steam-portfolio-env`.
   - **Service**: `ClusterIP` on port 4321.
   - No Ingress. Traefik is not used.
-- **Releases**: a `v*.*.*` tag runs `.github/workflows/release.yml`. The deploy job runs on the Pi's self-hosted runner (label `rpi5`) and sets `newTag` only in its own checkout, so the committed tag is just the first-deploy value. Runner setup is in profile-api `docs/deploy.md` section 5.
+- **Releases**: a `v*.*.*` tag runs `.github/workflows/release.yml`. The deploy job runs on the Pi's self-hosted runner (label `rpi5`), writes the `ENV` repository secret (the whole production `.env`) into `steam-portfolio-env`, and sets `newTag` only in its own checkout, so the committed tag is just the first-deploy value. Runner setup is in profile-api `docs/deploy.md` section 5.
 - **Cloudflare**:
   - The shared tunnel (profile-api `deploy/cluster`) routes `<portfolio-domain>` to `http://steam-portfolio.steam-portfolio.svc.cluster.local:4321`.
   - Add a Cache Rule that caches HTML while respecting origin headers and bypasses `/admin*` and `/api/*`.
