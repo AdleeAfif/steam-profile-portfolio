@@ -7,5 +7,5 @@ resources:
   - service.yaml
 images:
   - name: steam-portfolio
-    newName: docker.io/adleeafif/profile-api
+    newName: docker.io/adleeafif/steam-portfolio
     newTag: 0.1.0

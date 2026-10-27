@@ -79,8 +79,7 @@ npm run check          # astro check - must pass
 npm run lint           # eslint - must pass
 npm test               # vitest
 npm run gen:api        # openapi-typescript ../profile-api/api/openapi.yaml -o src/lib/api/schema.d.ts
-docker buildx build --platform linux/arm64,linux/amd64 -t <registry>/steam-portfolio:<tag> --push .
-kubectl apply -k k8s/
+git tag v0.1.1 && git push origin v0.1.1   # release: .github/workflows/release.yml tests, pushes docker.io/adleeafif/steam-portfolio:0.1.1, deploys on the Pi
 ```
 
 For local development, run profile-api locally (`make run` in that repo) and point `PROFILE_API_URL` at `http://localhost:8080` and `PROFILE_API_ADMIN_URL` at `http://localhost:8081`.
@@ -309,6 +308,7 @@ Pages:
     - `envFrom` secret `steam-portfolio-env`.
   - **Service**: `ClusterIP` on port 4321.
   - No Ingress. Traefik is not used.
+- **Releases**: a `v*.*.*` tag runs `.github/workflows/release.yml`. The deploy job runs on the Pi's self-hosted runner (label `rpi5`) and sets `newTag` only in its own checkout, so the committed tag is just the first-deploy value. Runner setup is in profile-api `docs/deploy.md` section 5.
 - **Cloudflare**:
   - The shared tunnel (profile-api `deploy/cluster`) routes `<portfolio-domain>` to `http://steam-portfolio.steam-portfolio.svc.cluster.local:4321`.
   - Add a Cache Rule that caches HTML while respecting origin headers and bypasses `/admin*` and `/api/*`.
