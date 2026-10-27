@@ -245,7 +245,7 @@ Visual language:
 
 Pages:
 
-- **Base layout**: Steam client top bar, led by ADLEE AFIF (`/`, with a dropdown for Profile, Badges, Inventory, Games, Achievements, Wishlist, Replay, Points Shop), then STORE (`/store`), LIBRARY (`/games`) and COMMUNITY (`/achievements`). The favicon is the owner's logo (`public/favicon.svg`, with a PNG fallback). On mobile, a bottom tab bar replaces it ("Steam Deck mode"): Profile, Library, Inventory, Badges, Store.
+- **Base layout**: Steam client top bar with STORE (`/store`), LIBRARY (`/games`), COMMUNITY (`/achievements`) and, last, ADLEE AFIF (`/`, with a dropdown for Profile, Badges, Inventory, Games, Achievements, Wishlist, Replay, Points Shop). The favicon is the owner's logo (`public/favicon.svg`, with a PNG fallback). On mobile, a bottom tab bar replaces it ("Steam Deck mode"): Profile, Library, Inventory, Badges, Store.
 - **Profile (`/`)**, from `GET /v1/profile` plus the other list endpoints, fetched in parallel:
   - **Header**: avatar with the selected frame, persona name, country flag (`https://flagcdn.com/24x18/{cc}.png`), real name, location, summary, Level card (ring, XP bar, "N XP to Level N+1"), featured badge, and "Message" / "Download Resume" buttons.
   - **Left column** showcases: Favorite Game, Item Showcase (`showcaseSkillIds`), Rarest Achievement (lowest `globalPercent` among unlocked), Review Showcase, Workshop Showcase, Recent Activity (`/v1/activity`, labelled as an estimate), Comments, and the contact form.

@@ -102,6 +102,24 @@ const shopKey = STORAGE_KEYS.shop;
     <header class="hidden bg-steam-header md:block">
       <nav aria-label="Main" class="mx-auto flex h-[104px] max-w-[976px] items-center gap-8 px-4">
         <ul class="flex items-center gap-6 text-[15px] font-medium tracking-wide">
+          {
+            top.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  aria-current={isActive(item.href, item.match) ? "page" : undefined}
+                  class:list={[
+                    "block border-b-[3px] pb-1 no-underline",
+                    isActive(item.href, item.match)
+                      ? "border-steam-accent text-steam-accent"
+                      : "border-transparent text-steam-text hover:text-white",
+                  ]}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
           <li class="relative">
             <details class="group" data-nav-dropdown>
               <summary
@@ -132,24 +150,6 @@ const shopKey = STORAGE_KEYS.shop;
               </ul>
             </details>
           </li>
-          {
-            top.map((item) => (
-              <li>
-                <a
-                  href={item.href}
-                  aria-current={isActive(item.href, item.match) ? "page" : undefined}
-                  class:list={[
-                    "block border-b-[3px] pb-1 no-underline",
-                    isActive(item.href, item.match)
-                      ? "border-steam-accent text-steam-accent"
-                      : "border-transparent text-steam-text hover:text-white",
-                  ]}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))
-          }
         </ul>
       </nav>
     </header>
