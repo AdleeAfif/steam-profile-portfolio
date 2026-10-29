@@ -154,6 +154,7 @@ export const COLLECTION_META: Record<Collection, CollectionMeta> = {
         type: "json",
         help: 'JSON array of {"name", "description", "unlocked"}.',
       },
+      { name: "hidden", label: "Hide from public", type: "boolean", help: "Stays in the admin but is left out of the public site." },
     ],
   },
   achievements: {
@@ -208,6 +209,7 @@ export const COLLECTION_META: Record<Collection, CollectionMeta> = {
       { name: "text", label: "Text", type: "textarea", required: true },
       { name: "recommended", label: "Recommended", type: "boolean" },
       { name: "date", label: "Date", type: "date", required: true },
+      { name: "hidden", label: "Hide from public", type: "boolean", help: "Stays in the admin but is left out of the public site." },
     ],
   },
   workshop: {

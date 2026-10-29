@@ -77,8 +77,7 @@ const rows = items.map((item) => {
   return {
     id,
     title: displayValue(item[meta.titleField]) || id,
-    meta: meta.metaFields
-      .map((f) => displayValue(item[f]))
+    meta: [item.hidden === true ? "Hidden from public" : "", ...meta.metaFields.map((f) => displayValue(item[f]))]
       .filter(Boolean)
       .join(" · "),
     color: typeof item.color === "string" ? item.color : null,

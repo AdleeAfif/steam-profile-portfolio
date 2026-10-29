@@ -988,6 +988,8 @@ export interface components {
             color: string;
             screenshots: string[];
             achievements: components["schemas"]["ProjectAchievement"][];
+            /** @description Admin only. Hidden projects are left out of every public response, and their detail route returns 404. */
+            hidden?: boolean;
             /**
              * Format: date-time
              * @description GitHub `pushed_at` of `repo`, when known. Never returned by the admin API.
@@ -1024,6 +1026,8 @@ export interface components {
             text: string;
             recommended: boolean;
             date: components["schemas"]["Date"];
+            /** @description Admin only. Hidden reviews are left out of `/v1/reviews`. */
+            hidden?: boolean;
         };
         WorkshopItem: components["schemas"]["Timestamps"] & {
             id: string;
